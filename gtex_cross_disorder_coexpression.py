@@ -18,7 +18,7 @@ def cross_disorder_coexpression(expr_file, genes_csv, gene_symbols, output_prefi
     """
 
     # Load expression data (BED file)
-    expr_df = pd.read_csv(expr_file, sep="\t")
+    expr_df = pd.read_csv(expr_file,  sep="\t")
     expr_df['gene_id'] = expr_df['gene_id'].str.split('.').str[0]
     expr_df.set_index('gene_id', inplace=True)
     expr_data = expr_df.iloc[:, 3:]  # skip chr, start, end
