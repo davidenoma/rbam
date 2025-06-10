@@ -6,11 +6,12 @@ import sys
 # Define constants and paths
 PLINK_PATH = "plink"  # Update to the full path if PLINK is not in your $PATH
 PYTHON_PATH = "python3"  # Update to the full path if needed
-GENO_UTILS_PATH = os.path.expanduser("~/Simulations_GWAS/utils/update_config_file.py")
-AE_PATH = os.path.expanduser("~/RL_GENO/AE_latent_space_embedding.py")
-VAE_PATH = os.path.expanduser("~/RL_GENO/VAE_get_recon_cc_quant.py")
-MERGE_WEIGHTS_PATH = os.path.expanduser("~/RL_GENO/utils/merge_enc_and_dec_weights.py")
-BAS_PIPELINE_PATH = os.path.expanduser("~/bas_pipeline")  # Pre-cloned path of bas_pipeline
+
+GENO_UTILS_PATH = os.path.join(os.path.dirname(__file__), "utils/update_config_file.py")
+AE_PATH = os.path.join(os.path.dirname(__file__), "runner/AE_latent_space_embedding.py")
+VAE_PATH = os.path.join(os.path.dirname(__file__),"runner/VAE_get_recon_cc_quant.py")
+MERGE_WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), "utils/merge_enc_and_dec_weights.py")
+BAS_PIPELINE_PATH = os.path.expanduser("~/moka")  # Pre-cloned path of moka_pipeline
 
 
 def run_command(command, cwd=None):
@@ -24,8 +25,25 @@ def run_command(command, cwd=None):
         print(f"Command failed: {' '.join(command)}")
         raise e
 
+def copy_matching_files(src_dir, dest_dir):
+    for root, dirs, files in os.walk(src_dir):
+        for file in files:
+            rel_path = os.path.relpath(os.path.join(root, file), src_dir)
+            src_file = os.path.join(src_dir, rel_path)
+            dest_file = os.path.join(dest_dir, rel_path)
 
-def process_folder(folder, is_binary=True):
+            if os.path.exists(dest_file):
+                # Only replace if the file exists in dest
+                print(f"Replacing: {dest_file}")
+                shutil.copy2(src_file, dest_file)
+            else:
+                # Do not copy if the file does not exist in dest
+                print(f"Skipping (not in dest): {rel_path}")
+
+# Example usage:
+# copy_matching_files('/path/to/source', '/path/to/destination')
+
+def process_folder(folder, is_binary=True,is_spectral_decorrelated=True,do_reconstruction=False):
     """
     Process a single folder.
     """
@@ -55,9 +73,10 @@ def process_folder(folder, is_binary=True):
         subprocess.run(replace_command, shell=True, check=True)
 
 
-        # Step 3: Latent space embedding and reconstruction
-        run_command([PYTHON_PATH, VAE_PATH, f"{pruned_prefix}.raw", f"{pruned_prefix}.bim", phenotype_type])
-        run_command([PYTHON_PATH, AE_PATH, f"{pruned_prefix}.raw", f"{pruned_prefix}.bim", phenotype_type])
+        # Optional reconstruction and weight extraction block
+        if do_reconstruction:
+            run_command([PYTHON_PATH, VAE_PATH, f"{pruned_prefix}.raw", f"{pruned_prefix}.bim", phenotype_type])
+            run_command([PYTHON_PATH, AE_PATH, f"{pruned_prefix}.raw", f"{pruned_prefix}.bim", phenotype_type])
 
         # Step 4: Merge encoder and decoder weights
         if is_binary:
@@ -91,12 +110,13 @@ def process_folder(folder, is_binary=True):
 
         # Step 6: Use pre-cloned `bas_pipeline`
         pipeline_path = os.path.join(folder, "bas_pipeline")
-        if os.path.exists(pipeline_path):
-            print(f"Removing existing directory: {pipeline_path}")
-            shutil.rmtree(pipeline_path)
+        #No need to remove existing directory, as we are copying from a pre-cloned version
+        # if os.path.exists(pipeline_path):
+        #     print(f"Removing existing directory: {pipeline_path}")
+        #     shutil.rmtree(pipeline_path)
 
         print(f"Copying pre-cloned bas_pipeline from {BAS_PIPELINE_PATH} to {pipeline_path}")
-        shutil.copytree(BAS_PIPELINE_PATH, pipeline_path)
+        shutil.copytree(BAS_PIPELINE_PATH, pipeline_path,dirs_exist_ok=True)
 
         # Copy genotype files to bas_pipeline/genotype_data/
         genotype_data_path = os.path.join(pipeline_path, "genotype_data")
@@ -107,14 +127,21 @@ def process_folder(folder, is_binary=True):
             dest_file = os.path.join(genotype_data_path, f"{geno_prefix}.{ext}")
             shutil.copy(src_file, dest_file)
         print(f"Copied genotype files to {genotype_data_path}")
-
+        if is_spectral_decorrelated:
         # Define weight types including SHAP weights
-        weight_types = [
-            ("enc", f"{pruned_prefix}_encoder_snp_and_weights.tsv"),
-            ("dec", f"{pruned_prefix}_decoder_snp_and_weights.tsv"),
-            ("enc_dec", f"{pruned_prefix}_encoder_decoder_snp_and_weights.tsv"),
-            ("shap", f"{pruned_prefix}_shap_weights.tsv"),
-        ]
+            weight_types = [
+                ("enc_sd", f"{pruned_prefix}_encoder_snp_and_weights.tsv"),
+                ("dec_sd", f"{pruned_prefix}_decoder_snp_and_weights.tsv"),
+                ("enc_dec_sd", f"{pruned_prefix}_encoder_decoder_snp_and_weights.tsv"),
+                ("shap_sd", f"{pruned_prefix}_shap_weights.tsv"),
+            ]
+        else:
+            weight_types = [
+                ("enc", f"{pruned_prefix}_encoder_snp_and_weights.tsv"),
+                ("dec", f"{pruned_prefix}_decoder_snp_and_weights.tsv"),
+                ("enc_dec", f"{pruned_prefix}_encoder_decoder_snp_and_weights.tsv"),
+                ("shap", f"{pruned_prefix}_shap_weights.tsv"),
+            ]
 
         # Copy weight files to bas_pipeline weights directory
         for weight_type, weight_file in weight_types:
@@ -140,14 +167,15 @@ def process_folder(folder, is_binary=True):
                     "--config_file",
                     "config/config.yaml",
                     "--updates",
-                    f"   ={weight_type}",
+                    f"weights_type={weight_type}",
                     f"weights_file=weights/{weights_file}",
                     f"genotype_prefix={geno_prefix}",
                     f"is_binary={'TRUE' if is_binary else 'FALSE'}",
+                    f"is_spectral_decorrelated={'TRUE' if is_spectral_decorrelated else 'FALSE'}",
                 ]
             )
             run_command(["snakemake", "-c", "22"])
-            run_command(["snakemake", "-c", "1", "merge_skat_results"])
+            run_command(["snakemake", "-c", "1", "merge_moka_results"])
             run_command(["snakemake", "-c", "1", "manhattan_plots"])
             # run_command(["snakemake", "-c", "1", "manhattan_plots"])
 
@@ -159,17 +187,21 @@ def process_folder(folder, is_binary=True):
     finally:
         os.chdir(initial_cwd)
 
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python script.py <folder_name> [--quantitative]")
+        print("Usage: python script.py <folder_name> [--quantitative] [--no-spectral] [--reconstruction]")
         sys.exit(1)
 
     folder_name = sys.argv[1]
     is_binary = "--quantitative" not in sys.argv
+    # By default spectral decorrelation is enabled, disable if flag --no-spectral is provided
+    is_spectral_decorrelated = "--no-spectral" not in sys.argv
+    # Check if reconstruction is requested
+    do_reconstruction = "--reconstruction" in sys.argv
+
     folder_path = os.path.abspath(folder_name)
 
     if os.path.exists(folder_path) and os.path.isdir(folder_path):
-        process_folder(folder_path, is_binary)
+        process_folder(folder_path, is_binary, is_spectral_decorrelated,do_reconstruction)
     else:
         print(f"Error: Folder {folder_name} does not exist.")
