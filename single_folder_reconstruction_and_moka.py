@@ -25,24 +25,6 @@ def run_command(command, cwd=None):
         print(f"Command failed: {' '.join(command)}")
         raise e
 
-def copy_matching_files(src_dir, dest_dir):
-    for root, dirs, files in os.walk(src_dir):
-        for file in files:
-            rel_path = os.path.relpath(os.path.join(root, file), src_dir)
-            src_file = os.path.join(src_dir, rel_path)
-            dest_file = os.path.join(dest_dir, rel_path)
-
-            if os.path.exists(dest_file):
-                # Only replace if the file exists in dest
-                print(f"Replacing: {dest_file}")
-                shutil.copy2(src_file, dest_file)
-            else:
-                # Do not copy if the file does not exist in dest
-                print(f"Skipping (not in dest): {rel_path}")
-
-# Example usage:
-# copy_matching_files('/path/to/source', '/path/to/destination')
-
 def process_folder(folder, is_binary=True,is_spectral_decorrelated=True,do_reconstruction=False):
     """
     Process a single folder.
@@ -66,10 +48,14 @@ def process_folder(folder, is_binary=True,is_spectral_decorrelated=True,do_recon
 
         # Step 2: Convert pruned genotype data to raw format
         run_command([PLINK_PATH, "--bfile", pruned_prefix, "--recodeA", "--out", pruned_prefix])
-
-        # Step 3: Replace NA with -9 in the raw file
         raw_file = f"{pruned_prefix}.raw"
-        replace_command = f"sed -i 's/NA/0/g' {raw_file}"
+
+        if sys.platform == "darwin":
+            # macOS requires an empty string for the backup extension
+            replace_command = f"sed -i '' 's/NA/0/g' {raw_file}"
+        else:
+            replace_command = f"sed -i 's/NA/0/g' {raw_file}"
+
         subprocess.run(replace_command, shell=True, check=True)
 
 
