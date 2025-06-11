@@ -25,6 +25,7 @@ python {script_path} {folder_name} {study_flag} {is_spectral_decorrelated} {do_r
 def generate_and_submit_scripts(base_dir, folder_prefix, study_type, is_spectral_decorrelated,reconstruction_flag):
     # Determine the flag based on study type
     study_flag = "--quantitative" if study_type == "quantitative" else ""
+    do_reconstruction = "--reconstruction" if reconstruction_flag else ""
 
     # Get all folders starting with the given prefix
     folders = [f for f in os.listdir(base_dir) if os.path.isdir(f) and f.startswith(folder_prefix)]
@@ -46,7 +47,7 @@ def generate_and_submit_scripts(base_dir, folder_prefix, study_type, is_spectral
             folder_name=os.path.abspath(folder),
             study_flag=study_flag,
             is_spectral_decorrelated=is_spectral_decorrelated,
-            do_reconstruction = reconstruction_flag
+            do_reconstruction = do_reconstruction
         )
 
         # Save SLURM script
