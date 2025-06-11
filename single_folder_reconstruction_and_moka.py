@@ -2,6 +2,7 @@ import os
 import subprocess
 import shutil
 import sys
+import traceback
 
 # Define constants and paths
 PLINK_PATH = "plink"  # Update to the full path if PLINK is not in your $PATH
@@ -145,30 +146,29 @@ def process_folder(folder, is_binary=True,is_spectral_decorrelated=True,do_recon
         print(f"Copied template config file to {config_file}")
 
         # Run Snakemake for each weight type
+        # Run Snakemake for each weight type
         for weight_type, weights_file in weight_types:
-            run_command(
-                [
-                    PYTHON_PATH,
-                    GENO_UTILS_PATH,
-                    "--config_file",
-                    "config/config.yaml",
-                    "--updates",
-                    f"weights_type={weight_type}",
-                    f"weights_file=weights/{weights_file}",
-                    f"genotype_prefix={geno_prefix}",
-                    f"is_binary={'TRUE' if is_binary else 'FALSE'}",
-                    f"is_spectral_decorrelated={'TRUE' if is_spectral_decorrelated else 'FALSE'}",
-                ]
-            )
-            run_command(["snakemake", "-c", "22"])
-            run_command(["snakemake", "-c", "1", "merge_moka_results"])
-            run_command(["snakemake", "-c", "1", "manhattan_plots"])
-            # run_command(["snakemake", "-c", "1", "manhattan_plots"])
-
-        print(f"Completed processing for folder: {folder}")
-
-    except Exception as e:
-        print(f"Error processing folder {folder}: {e}")
+            try:
+                run_command(
+                    [
+                        PYTHON_PATH,
+                        GENO_UTILS_PATH,
+                        "--config_file",
+                        "config/config.yaml",
+                        "--updates",
+                        f"weights_type={weight_type}",
+                        f"weights_file=weights/{weights_file}",
+                        f"genotype_prefix={geno_prefix}",
+                        f"is_binary={'TRUE' if is_binary else 'FALSE'}",
+                        f"is_spectral_decorrelated={'TRUE' if is_spectral_decorrelated else 'FALSE'}",
+                    ]
+                )
+                run_command(["snakemake", "-c", "22"])
+                run_command(["snakemake", "-c", "1", "merge_moka_results"])
+                run_command(["snakemake", "-c", "1", "manhattan_plots"])
+            except Exception:
+                print(f"An error occurred while processing weight type: {weight_type}")
+                print(traceback.format_exc())
 
     finally:
         os.chdir(initial_cwd)
@@ -180,14 +180,16 @@ if __name__ == "__main__":
 
     folder_name = sys.argv[1]
     is_binary = "--quantitative" not in sys.argv
-    # By default spectral decorrelation is enabled, disable if flag --no-spectral is provided
     is_spectral_decorrelated = "--no-spectral" not in sys.argv
-    # Check if reconstruction is requested
     do_reconstruction = "--reconstruction" in sys.argv
 
     folder_path = os.path.abspath(folder_name)
 
     if os.path.exists(folder_path) and os.path.isdir(folder_path):
-        process_folder(folder_path, is_binary, is_spectral_decorrelated,do_reconstruction)
+        try:
+            process_folder(folder_path, is_binary, is_spectral_decorrelated, do_reconstruction)
+        except Exception as e:
+            print("An error occurred:")
+            print(traceback.format_exc())
     else:
         print(f"Error: Folder {folder_name} does not exist.")

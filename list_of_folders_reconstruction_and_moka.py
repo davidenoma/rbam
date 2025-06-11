@@ -16,7 +16,7 @@ module load cuda/12.1.1
 export XLA_FLAGS='--xla_gpu_cuda_data_dir=/global/software/cuda/cuda-12.1.1'
 
 source ~/.bashrc
-conda activate snakemake
+mamba activate snakemake
 module load R/4.2.0
 
 python {script_path} {folder_name} {study_flag} {is_spectral_decorrelated} {do_reconstruction}
