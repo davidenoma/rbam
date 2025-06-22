@@ -7,12 +7,16 @@ import pandas as pd
 import sys
 from matplotlib import pyplot as plt
 from scipy.stats import f, pearsonr
-from sklearn.model_selection import train_test_split
+from sklearn import clone
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import r2_score, mean_squared_error, accuracy_score, roc_auc_score, pairwise_distances
 from sklearn.model_selection import KFold
 import tensorflow as tf
 import numpy as np
 from sklearn.model_selection import KFold
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from tensorflow.python.keras.models import clone_model
 
 import utils
 
@@ -606,102 +610,203 @@ def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
 #     avg_r2_val_py = np.mean(r2_val_list_py)
 #
 #     return avg_mse_train, avg_mse_val, avg_r2_train, avg_r2_val, avg_r2_train_py, avg_r2_val_py
+# def cross_validate_classifier(X, y, model_builder, n_splits=5, random_state=11):
+#     """
+#     Parameters
+#     ----------
+#     model_builder : callable
+#         Returns a *new* untrained estimator (Pipeline, sklearn model, or
+#         KerasClassifier).  We call it once per fold.
+#     """
+#     X = np.asarray(X)
+#     y = np.asarray(y)
+#
+#     skf = StratifiedKFold(n_splits=n_splits, shuffle=True,
+#                           random_state=random_state)
+#
+#     acc_train, acc_val = [], []
+#     auc_train, auc_val = [], []
+#
+#     for train_idx, val_idx in skf.split(X, y):
+#         X_tr, X_val = X[train_idx], X[val_idx]
+#         y_tr, y_val = y[train_idx], y[val_idx]
+#
+#         # Fresh clone/build for the current fold
+#         model = model_builder()
+#
+#         # If the model is NOT already in a pipeline, wrap with scaler here
+#         if not isinstance(model, Pipeline):
+#             model = Pipeline([
+#                 ('scaler', StandardScaler()),   # fit on *this* fold’s train set
+#                 ('clf',   model)
+#             ])
+#
+#         model.fit(X_tr, y_tr)
+#
+#         # Probabilities if available (decision_function fallback), else labels
+#         def proba(est, X_):
+#             if hasattr(est, "predict_proba"):
+#                 return est.predict_proba(X_)[:, 1]
+#             elif hasattr(est, "decision_function"):
+#                 return est.decision_function(X_)
+#             else:  # keras wrapper returns probabilities directly
+#                 preds = est.predict(X_, verbose=0).ravel()
+#                 return preds
+#
+#         y_tr_proba = proba(model, X_tr)
+#         y_val_proba = proba(model, X_val)
+#
+#         y_tr_pred = (y_tr_proba > 0.5).astype(int)
+#         y_val_pred = (y_val_proba > 0.5).astype(int)
+#
+#         acc_train.append(accuracy_score(y_tr, y_tr_pred))
+#         acc_val.append(accuracy_score(y_val, y_val_pred))
+#
+#         auc_train.append(roc_auc_score(y_tr, y_tr_proba))
+#         auc_val.append(roc_auc_score(y_val, y_val_proba))
+#
+#     return (np.mean(acc_train), np.mean(acc_val),
+#             np.mean(auc_train), np.mean(auc_val))
 
-
+# def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
+#     """
+#     Cross-validate the classifier and calculate average accuracy, AUC, and R² scores.
+#
+#     Parameters:
+#     X (numpy array or tf.Tensor): Feature matrix.
+#     y (numpy array or tf.Tensor): Labels.
+#     model (tf.keras.Model or Scikit-Learn Model): The classifier model.
+#     n_splits (int): Number of cross-validation splits.
+#     random_state (int): Random state for reproducibility.
+#
+#     Returns:
+#     tuple: Average accuracy, AUC, and R² scores for training and validation sets.
+#     """
+#     # Convert TensorFlow tensors to NumPy arrays if necessary
+#     if isinstance(X, tf.Tensor):
+#         X = X.numpy()
+#     if isinstance(y, tf.Tensor):
+#         y = y.numpy()
+#
+#     # Initialize lists to store accuracy, AUC, and R² scores for all folds
+#     accuracy_train_list = []
+#     accuracy_val_list = []
+#     auc_train_list = []
+#     auc_val_list = []
+#     r2_train_list = []
+#     r2_val_list = []
+#
+#     # Perform K-fold cross-validation
+#     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+#
+#     # Iterate over cross-validation folds
+#     for train_index, val_index in kf.split(X):
+#         # Split data into training and validation sets using indices from KFold
+#         X_train, X_val = X[train_index], X[val_index]
+#         y_train, y_val = y[train_index], y[val_index]
+#
+#         # Check if the model is a Keras/TensorFlow model or a Scikit-Learn model
+#         if isinstance(model, tf.keras.Model):
+#             # Train the TensorFlow/Keras model
+#             # model.fit(X_train, y_train)  # Adjust these parameters as needed
+#
+#             # Predict probabilities for both training and validation sets
+#             y_train_pred_proba = model.predict(X_train)
+#             y_val_pred_proba = model.predict(X_val)
+#
+#         else:
+#             # Train the Scikit-Learn model
+#             # model.fit(X_train, y_train)
+#
+#             # Predict probabilities for both training and validation sets
+#             if hasattr(model, "predict_proba"):
+#                 y_train_pred_proba = model.predict_proba(X_train)[:, 1]
+#                 y_val_pred_proba = model.predict_proba(X_val)[:, 1]
+#             else:
+#                 # For models that do not support predict_proba, use predict
+#                 y_train_pred_proba = model.predict(X_train)
+#                 y_val_pred_proba = model.predict(X_val)
+#
+#         # Convert predicted probabilities to binary predictions
+#         y_train_pred = (y_train_pred_proba > 0.5).astype(int).flatten()
+#         y_val_pred = (y_val_pred_proba > 0.5).astype(int).flatten()
+#
+#         # Calculate accuracy and AUC scores
+#         accuracy_train = accuracy_score(y_train, y_train_pred)
+#         accuracy_val = accuracy_score(y_val, y_val_pred)
+#
+#         auc_train = roc_auc_score(y_train, y_train_pred_proba)
+#         auc_val = roc_auc_score(y_val, y_val_pred_proba)
+#
+#         # Calculate R² scores
+#         r2_train = evaluate_r2(y_train, y_train_pred)
+#         r2_val = evaluate_r2(y_val, y_val_pred)
+#
+#         # Append accuracy, AUC, and R² scores to lists
+#         accuracy_train_list.append(accuracy_train)
+#         accuracy_val_list.append(accuracy_val)
+#         auc_train_list.append(auc_train)
+#         auc_val_list.append(auc_val)
+#         # r2_train_list.append(r2_train)
+#         # r2_val_list.append(r2_val)
+#
+#     # Calculate average accuracy, AUC, and R² scores over all folds
+#     avg_accuracy_train = np.mean(accuracy_train_list)
+#     avg_accuracy_val = np.mean(accuracy_val_list)
+#
+#     avg_auc_train = np.mean(auc_train_list)
+#     avg_auc_val = np.mean(auc_val_list)
+#
+#     # avg_r2_train = np.mean(r2_train_list)
+#     # avg_r2_val = np.mean(r2_val_list)
+#
+#     return avg_accuracy_train, avg_accuracy_val, avg_auc_train, avg_auc_val
 def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
     """
-    Cross-validate the classifier and calculate average accuracy, AUC, and R² scores.
-
-    Parameters:
-    X (numpy array or tf.Tensor): Feature matrix.
-    y (numpy array or tf.Tensor): Labels.
-    model (tf.keras.Model or Scikit-Learn Model): The classifier model.
-    n_splits (int): Number of cross-validation splits.
-    random_state (int): Random state for reproducibility.
-
-    Returns:
-    tuple: Average accuracy, AUC, and R² scores for training and validation sets.
+    Uses K-fold CV without re-using the previously fitted `best_model`.
+    The estimator is *cloned* (untrained) at every fold to avoid leakage.
     """
-    # Convert TensorFlow tensors to NumPy arrays if necessary
-    if isinstance(X, tf.Tensor):
-        X = X.numpy()
-    if isinstance(y, tf.Tensor):
-        y = y.numpy()
+    X, y = np.asarray(X), np.asarray(y)
+    kf   = StratifiedKFold(n_splits=n_splits, shuffle=True,
+                           random_state=random_state)
 
-    # Initialize lists to store accuracy, AUC, and R² scores for all folds
-    accuracy_train_list = []
-    accuracy_val_list = []
-    auc_train_list = []
-    auc_val_list = []
-    r2_train_list = []
-    r2_val_list = []
+    acc_tr, acc_val, auc_tr, auc_val = [], [], [], []
 
-    # Perform K-fold cross-validation
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    for tr_idx, val_idx in kf.split(X, y):
+        X_tr, X_val = X[tr_idx], X[val_idx]
+        y_tr, y_val = y[tr_idx], y[val_idx]
 
-    # Iterate over cross-validation folds
-    for train_index, val_index in kf.split(X):
-        # Split data into training and validation sets using indices from KFold
-        X_train, X_val = X[train_index], X[val_index]
-        y_train, y_val = y[train_index], y[val_index]
-
-        # Check if the model is a Keras/TensorFlow model or a Scikit-Learn model
+        # ------------------------------------------------------------------
+        # fresh copy of the model with identical hyper-params but *untrained*
+        # ------------------------------------------------------------------
         if isinstance(model, tf.keras.Model):
-            # Train the TensorFlow/Keras model
-            # model.fit(X_train, y_train)  # Adjust these parameters as needed
-
-            # Predict probabilities for both training and validation sets
-            y_train_pred_proba = model.predict(X_train)
-            y_val_pred_proba = model.predict(X_val)
-
+            fold_model = clone_model(model)
+            fold_model.compile(optimizer=tf.keras.optimizers.Adam(),
+                               loss='binary_crossentropy')
+            fold_model.fit(X_tr, y_tr,
+                           epochs=10, batch_size=32, verbose=0)
+            y_tr_proba  = fold_model.predict(X_tr, verbose=0).ravel()
+            y_val_proba = fold_model.predict(X_val, verbose=0).ravel()
         else:
-            # Train the Scikit-Learn model
-            # model.fit(X_train, y_train)
+            fold_model = clone(model)
+            fold_model.fit(X_tr, y_tr)
+            y_tr_proba  = (fold_model.predict_proba(X_tr)[:, 1]
+                           if hasattr(fold_model, "predict_proba")
+                           else fold_model.predict(X_tr))
+            y_val_proba = (fold_model.predict_proba(X_val)[:, 1]
+                           if hasattr(fold_model, "predict_proba")
+                           else fold_model.predict(X_val))
 
-            # Predict probabilities for both training and validation sets
-            if hasattr(model, "predict_proba"):
-                y_train_pred_proba = model.predict_proba(X_train)[:, 1]
-                y_val_pred_proba = model.predict_proba(X_val)[:, 1]
-            else:
-                # For models that do not support predict_proba, use predict
-                y_train_pred_proba = model.predict(X_train)
-                y_val_pred_proba = model.predict(X_val)
+        y_tr_pred  = (y_tr_proba  > 0.5).astype(int)
+        y_val_pred = (y_val_proba > 0.5).astype(int)
 
-        # Convert predicted probabilities to binary predictions
-        y_train_pred = (y_train_pred_proba > 0.5).astype(int).flatten()
-        y_val_pred = (y_val_pred_proba > 0.5).astype(int).flatten()
+        acc_tr.append(accuracy_score(y_tr, y_tr_pred))
+        acc_val.append(accuracy_score(y_val, y_val_pred))
+        auc_tr.append(roc_auc_score(y_tr, y_tr_proba))
+        auc_val.append(roc_auc_score(y_val, y_val_proba))
 
-        # Calculate accuracy and AUC scores
-        accuracy_train = accuracy_score(y_train, y_train_pred)
-        accuracy_val = accuracy_score(y_val, y_val_pred)
-
-        auc_train = roc_auc_score(y_train, y_train_pred_proba)
-        auc_val = roc_auc_score(y_val, y_val_pred_proba)
-
-        # Calculate R² scores
-        r2_train = evaluate_r2(y_train, y_train_pred)
-        r2_val = evaluate_r2(y_val, y_val_pred)
-
-        # Append accuracy, AUC, and R² scores to lists
-        accuracy_train_list.append(accuracy_train)
-        accuracy_val_list.append(accuracy_val)
-        auc_train_list.append(auc_train)
-        auc_val_list.append(auc_val)
-        # r2_train_list.append(r2_train)
-        # r2_val_list.append(r2_val)
-
-    # Calculate average accuracy, AUC, and R² scores over all folds
-    avg_accuracy_train = np.mean(accuracy_train_list)
-    avg_accuracy_val = np.mean(accuracy_val_list)
-
-    avg_auc_train = np.mean(auc_train_list)
-    avg_auc_val = np.mean(auc_val_list)
-
-    # avg_r2_train = np.mean(r2_train_list)
-    # avg_r2_val = np.mean(r2_val_list)
-
-    return avg_accuracy_train, avg_accuracy_val, avg_auc_train, avg_auc_val
-
+    return (np.mean(acc_tr),  np.mean(acc_val),
+            np.mean(auc_tr), np.mean(auc_val))
 
 def cross_validate_regressor(X, y, model, n_splits=5, random_state=11, best_epochs=None):
     """

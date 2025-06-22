@@ -366,16 +366,17 @@ z_mean_test, _ = tf.split(encoder.predict(X_test), num_or_size_splits=2, axis=1)
 # # Test data remains unchanged
 # z_mean_test_resampled, y_test_resampled = z_mean_test, y_test
 
-# Save latent space predictions
-save_latent_space_predictions(z_mean_full, snp_data_loc, prefix="latent_space_full")
-save_latent_space_predictions(z_mean_train, snp_data_loc, prefix="latent_space_train")
-save_latent_space_predictions(z_mean_test, snp_data_loc, prefix="latent_space_test")
+# # Save latent space predictions
+# save_latent_space_predictions(z_mean_full, snp_data_loc, prefix="latent_space_full")
+# save_latent_space_predictions(z_mean_train, snp_data_loc, prefix="latent_space_train")
+# save_latent_space_predictions(z_mean_test, snp_data_loc, prefix="latent_space_test")
 
 
 # Scale latent space
-z_mean_full = scaler.fit_transform(z_mean_full)
-z_mean_train = scaler.fit_transform(z_mean_train)
-z_mean_test = scaler.transform(z_mean_test)
+scaler = StandardScaler().fit(z_mean_train)
+z_mean_train = scaler.transform(z_mean_train)
+z_mean_test  = scaler.transform(z_mean_test)
+z_mean_full  = scaler.transform(z_mean_full)   # used later in CV
 
 
 # Class weights calculation
@@ -434,29 +435,43 @@ classifier_space = {
 # Objective function for hyperparameter optimization
 # Objective function for hyperparameter optimization
 def objective_classifier(params, model_type):
+    """
+    Hyperopt objective:  model is trained on 80 % of the *training*
+    data and evaluated on the held-out 20 % validation split.
+    The outer test set (z_mean_test / y_test) is never touched here.
+    """
     if model_type == 'tf_classifier':
-        model = create_tf_classifier_model(input_dim=z_mean_train.shape[1], **params)
-        history = model.fit(
-            z_mean_train, y_train, epochs=params['epochs'], validation_split=0.25,
-            batch_size=params['batch_size'], class_weight=class_weights_dict, verbose=1
+        # Keras can rely on its own validation_split argument
+        model = create_tf_classifier_model(input_dim=z_mean_train.shape[1],
+                                           **params)
+        hist = model.fit(
+            z_mean_train, y_train,
+            epochs=params['epochs'],
+            batch_size=params['batch_size'],
+            validation_split=0.20,            # inner-loop validation
+            class_weight=class_weights_dict,
+            verbose=0
         )
-        val_loss = np.mean(history.history['val_loss'])
+        val_loss = np.mean(hist.history['val_loss'])
     else:
+        # --- make an inner train/val split so we never peek at x_test ---
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            z_mean_train, y_train,
+            test_size=0.20, stratify=y_train, random_state=77)
+
         if model_type == 'logistic_regression':
             model = create_logistic_regression_model(**params)
-            model.fit(z_mean_train, y_train)
         elif model_type == 'random_forest':
             model = create_random_forest_model(**params)
-            model.fit(z_mean_train, y_train)
         elif model_type == 'xgboost':
             model = create_xgboost_model(**params)
-            # Compute scale_pos_weight for XGBoost
             scale_pos_weight = np.sum(y_train == 0) / np.sum(y_train == 1)
             model.set_params(scale_pos_weight=scale_pos_weight)
-            model.fit(z_mean_train, y_train)
-        predictions = model.predict(z_mean_test)
-        (predictions > 0.5).astype(int).flatten()
-        val_loss = accuracy_score(y_test,   (predictions > 0.5).astype(int).flatten())  # Use negative accuracy as loss
+
+        model.fit(X_tr, y_tr)
+        preds = model.predict(X_val)
+        val_loss = 1.0 - accuracy_score(y_val, preds)   # minimise 1-accuracy
+
     return {'loss': val_loss, 'status': STATUS_OK}
 
 # Key Changes
