@@ -376,7 +376,7 @@ z_mean_test, _ = tf.split(encoder.predict(X_test), num_or_size_splits=2, axis=1)
 scaler = StandardScaler().fit(z_mean_train)
 z_mean_train = scaler.transform(z_mean_train)
 z_mean_test  = scaler.transform(z_mean_test)
-z_mean_full  = scaler.transform(z_mean_full)   # used later in CV
+# z_mean_full  = scaler.transform(z_mean_full)   # used later in CV
 
 
 # Class weights calculation
@@ -420,7 +420,7 @@ classifier_space = {
     },
     'random_forest': {
         'n_estimators': hp.choice('n_estimators', [50, 100, 200]),
-        'max_depth': hp.choice('max_depth', [5, 10, 15, 20])
+        'max_depth': hp.choice('max_depth', [5, 10, 15, 20,25,50])
     },
     'xgboost': {
         'learning_rate': hp.choice('learning_rate', [0.01, 0.05, 0.1, 0.2]),
@@ -480,7 +480,7 @@ def objective_classifier(params, model_type):
 
 # Usage
 for model_type, space in classifier_space.items():
-    best_classifier = fmin(fn=lambda params: objective_classifier(params, model_type), space=space, algo=tpe.suggest, max_evals=10)
+    best_classifier = fmin(fn=lambda params: objective_classifier(params, model_type), space=space, algo=tpe.suggest, max_evals=20)
     best_hyperparameters = space_eval(space, best_classifier)
     print(f"Best hyperparameters for {model_type} ({snp_file_name}): {best_hyperparameters}")
 
@@ -524,7 +524,7 @@ for model_type, space in classifier_space.items():
 
     # Cross-validation for each classifier
     avg_accuracy_train, avg_accuracy_val, avg_auc_train, avg_auc_val = cross_validate_classifier(
-        z_mean_full, phenotype, best_model)
+        z_mean_train, y_train, best_model)
 
     # Save classifier metrics, including R²
     save_classifier_metrics(snp_data_loc, avg_accuracy_train, avg_auc_train, avg_accuracy_val, avg_auc_val,

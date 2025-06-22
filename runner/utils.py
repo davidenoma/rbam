@@ -780,7 +780,7 @@ def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
         # fresh copy of the model with identical hyper-params but *untrained*
         # ------------------------------------------------------------------
         if isinstance(model, tf.keras.Model):
-            fold_model = clone_model(model)
+            fold_model = tf.keras.models.clone_model(model, clone_function=None)
             fold_model.compile(optimizer=tf.keras.optimizers.Adam(),
                                loss='binary_crossentropy')
             fold_model.fit(X_tr, y_tr,
