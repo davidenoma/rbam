@@ -452,7 +452,7 @@ def objective_classifier(params, model_type):
             class_weight=class_weights_dict,
             verbose=0
         )
-        val_loss = np.mean(hist.history['val_loss'])
+        val_loss = np.min(hist.history['val_loss'])
     else:
         # --- make an inner train/val split so we never peek at x_test ---
         X_tr, X_val, y_tr, y_val = train_test_split(
