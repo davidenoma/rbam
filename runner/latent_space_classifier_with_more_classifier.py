@@ -506,15 +506,27 @@ for model_type, space in classifier_space.items():
 
 
     # Evaluate classifier
+    # phenotype_predictions_test = best_model.predict(z_mean_test)
+    # if model_type == 'tf_classifier':
+    #     phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
+    # else:
+    #     phenotype_predictions_test = best_model.predict_proba(z_mean_test)[:, 1]
+    #     phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
+    #
+    # ind_test_accuracy = accuracy_score(y_test, phenotype_predictions_test)
+    # ind_test_auc = roc_auc_score(y_test, phenotype_predictions_test)
+    # Evaluate classifier
     phenotype_predictions_test = best_model.predict(z_mean_test)
-    if model_type == 'tf_classifier':
-        phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
-    else:
-        phenotype_predictions_test = best_model.predict_proba(z_mean_test)[:, 1]
-        phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
+      # --- probabilities for AUC, thresholded classes for accuracy ---
 
-    ind_test_accuracy = accuracy_score(y_test, phenotype_predictions_test)
-    ind_test_auc = roc_auc_score(y_test, phenotype_predictions_test)
+    if isinstance(best_model, tf.keras.Model):
+                proba_test = best_model.predict(z_mean_test, verbose=0).ravel()
+    else:
+            proba_test = best_model.predict_proba(z_mean_test)[:, 1]
+
+    y_pred_test = (proba_test > 0.5).astype(int)
+    ind_test_accuracy = accuracy_score(y_test, y_pred_test)
+    ind_test_auc = roc_auc_score(y_test, proba_test)
     # Adding R² evaluation
     ind_test_r2 = utils.evaluate_r2(y_test, phenotype_predictions_test)
 

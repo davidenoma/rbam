@@ -50,7 +50,6 @@ def extract_phenotype(genotype_file):
 
     return phenotype
 
-
 def load_real_genotype_data(snp_data_loc):
     """
     Loads genotype data from a file, processes SNP IDs to remove suffixes,
@@ -59,9 +58,9 @@ def load_real_genotype_data(snp_data_loc):
 
     Parameters:
         snp_data_loc (str): The path to the SNP data file.
-
     Returns:
         X_train, X_test, snp_data, phenotype, y_train, y_test (tuple): The train-test split data and the full dataset.
+
     """
     # Extract the phenotype column using the extract_phenotype function
     print(snp_data_loc)
@@ -90,7 +89,6 @@ def load_real_genotype_data(snp_data_loc):
     #
     # # Replace old column names with cleaned SNP IDs
     # snp_data.columns = snp_ids
-
     # Since the phenotype is already extracted, we don't need to extract it again.
     # Remove the PHENOTYPE column if it is still in the DataFrame
     if 'PHENOTYPE' in snp_data.columns:
