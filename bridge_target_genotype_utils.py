@@ -124,13 +124,13 @@ def sum_stats_onlyweighted_real_genotype_data(snp_data, sum_stats, ss_beta_colum
     if not sum_stats.empty:
         for index, row in sum_stats.iterrows():
             snp_id = row.iloc[1]  # Assuming the first column contains SNP IDs
-            beta = np.float64(row.iloc[ss_beta_column])  # Assuming the tdtype=floathird column contains the multipliers
+            beta = np.float32(row.iloc[ss_beta_column])  # Assuming the tdtype=floathird column contains the multipliers
             print("Sum stat beta", beta)
             print(snp_id)
             if snp_id in snp_data.columns:
                 sum_stat_weighted[snp_id] = snp_data[snp_id] * beta
 
-    modified_data_ss_only = pd.DataFrame(sum_stat_weighted,dtype=np.float64)
+    modified_data_ss_only = pd.DataFrame(sum_stat_weighted,dtype=np.float32)
     print("Sum Stats with only sum stats: ", modified_data_ss_only.shape)
     # print("Sum Stats with only sum stats: ", modified_data_ss_only.head())
 
