@@ -1,6 +1,6 @@
 # RBAM: Representation Learning-Based Association Mapping
 
-<img width="1024" height="1024" alt="rbam_methods" src="https://github.com/user-attachments/assets/8a5148fa-4da2-4904-a78e-45ff9f7e68fc" />
+<img width="800" height="800" alt="rbam_methods" src="https://github.com/user-attachments/assets/8a5148fa-4da2-4904-a78e-45ff9f7e68fc" />
 
 ## Overview
 
