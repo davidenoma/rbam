@@ -21,9 +21,6 @@ from tensorflow.python.keras.models import clone_model
 import utils
 
 
-# from latent_space_classifier import VAE
-# from sklearn.preprocessing import StandardScaler
-# import keras
 def extract_phenotype(genotype_file):
     """
     Extracts the phenotype column from the .raw genotype file, skipping the header.
@@ -141,17 +138,6 @@ def load_real_genotype_data_case_control(snp_data_loc):
     return X_train, X_test, snp_data
 
 
-def sim_data():
-    # Generate synthetic data
-    num_samples = 5000
-    num_snps = 100
-    # Define feature names based on your data (replace these with your actual feature names)
-    feature_names = [f'feature_{i}' for i in range(num_snps)]
-    synthetic_data = np.random.randint(0, 3, size=(num_samples, num_snps), dtype='int8')
-    synthetic_df = pd.DataFrame(data=synthetic_data, columns=feature_names)
-    X_train, X_test = train_test_split(synthetic_df, test_size=0.2, random_state=42)
-    return X_train, X_test
-
 
 def save_summary(snp_data_loc, vae, hopt=None):
     output_folder = "model_outputs"
@@ -212,21 +198,6 @@ def extract_encoder_weights(vae):
     # want the representation learning be close to the reconstructions
     encoder_weights = vae.encoder.get_weights()
 
-    encoder_layers = vae.encoder.layers
-
-    # Print the layer configurations at runtime
-    # for layer in encoder_layers:
-    #     print(f"Layer: {layer.name}")
-    #     print(f"Type: {layer.__class__.__name__}")
-    #     print("Config:")
-    #     for key, value in layer.get_config().items():
-    #         print(f"  {key}: {value}")
-    #     print("-" * 60)
-
-    # print(encoder_weights.shape)
-    # encoder_weight_paths = vae.encoder.get_weight_paths()
-    # print(encoder_weight_paths)
-    # print([w.shape for w in encoder_weights])
     kernel_weights_for_first_neuron = encoder_weights[0]
     feature_importance = []
     print('Encoder Size', kernel_weights_for_first_neuron.shape)
@@ -256,80 +227,6 @@ def save_plots(history, snp_data_loc, hopt=None):
     plt.show()
 
 
-def save_mse_values(snp_data_loc, mse_train, mse_test, mse_whole, hopt=None):
-    output_folder = "model_outputs"
-    if hopt:
-        output_folder = output_folder + "/" + hopt
-    os.makedirs(output_folder, exist_ok=True)
-
-    # Print the MSE values
-    print("Mean Squared Error (MSE) between original and reconstructed train data:", mse_train)
-    print("Mean Squared Error (MSE) between input and reconstructed test data:", mse_test)
-    print("Mean Squared Error (MSE) between input and reconstructed whole data:", mse_whole)
-
-    # Write the MSE values to a file
-    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_mse_results.txt"),
-              "w") as file:
-        file.write(
-            "Mean Squared Error (MSE) between original and reconstructed original train data: " + str(mse_train) + "\n")
-        file.write("Mean Squared Error (MSE) between reconstructed test data: " + str(mse_test) + "\n")
-        file.write("Mean Squared Error (MSE) between reconstructed whole data: " + str(mse_whole) + "\n")
-
-
-def save_mse_values_cv(snp_data_loc, mse_train, mse_test, hopt=None):
-    output_folder = "model_outputs"
-    if hopt:
-        output_folder = output_folder + "/" + hopt
-    os.makedirs(output_folder, exist_ok=True)
-
-    # Print the MSE values
-    print("Mean Squared Error (MSE) between original and reconstructed train data:", mse_train)
-    print("Mean Squared Error (MSE) between input and reconstructed test data:", mse_test)
-
-    # Write the MSE values to a file
-    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_mse_results.txt"),
-              "w") as file:
-        file.write(
-            "Mean Squared Error (MSE) between original and reconstructed original train data: " + str(mse_train) + "\n")
-        file.write("Mean Squared Error (MSE) between reconstructed test data: " + str(mse_test) + "\n")
-
-
-def save_r2_scores(snp_data_loc, r2_train, r2test, r2whole, hopt=None):
-    output_folder = "model_outputs"
-
-    if hopt:
-        output_folder = os.path.join(output_folder, hopt)
-
-    os.makedirs(output_folder, exist_ok=True)
-    # Print the R2 scores
-    print("R-squared (R2) for train data:", r2_train)
-    print("R-squared (R2) for  test data:", r2test)
-    print("R-squared (R2) for  whole data:", r2whole)
-
-    # Write the R2 scores to a file
-    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_r2_results.txt"),
-              "w") as file:
-        file.write("R-squared (R2) for  train data: " + str(r2_train) + "\n")
-        file.write("R-squared (R2) for  test data: " + str(r2test) + "\n")
-        file.write("R-squared (R2) for  whole data: " + str(r2whole) + "\n")
-
-
-def save_r2_scores_cv(snp_data_loc, r2_train, r2test, hopt=None):
-    output_folder = "model_outputs/cv"
-
-    if hopt:
-        output_folder = os.path.join(output_folder, hopt)
-
-    os.makedirs(output_folder, exist_ok=True)
-    # Print the R2 scores
-    print("R-squared (R2) for train data:", r2_train)
-    print("R-squared (R2) for  test data:", r2test)
-
-    # Write the R2 scores to a file
-    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_r2_results.txt"),
-              "w") as file:
-        file.write("R-squared (R2) for  train data: " + str(r2_train) + "\n")
-        file.write("R-squared (R2) for  test data: " + str(r2test) + "\n")
 
 
 def save_classifier_metrics(snp_data_loc, train_accuracy, train_auc, test_accuracy, test_auc, ind_test_accuracy,
@@ -405,22 +302,6 @@ def evaluate_r2(original, reconstructed):
     return rsquared
 
 
-def evaluate_r2_ls_reg(y_true, y_pred):
-    """
-    Compute the coefficient of determination (R²) for the given true and predicted values.
-
-    Args:
-        y_true (np.ndarray): The true values (targets).
-        y_pred (np.ndarray): The predicted values.
-
-    Returns:
-        float: The R² score.
-    """
-    ss_res = np.sum((y_true - y_pred) ** 2)  # Residual sum of squares
-    ss_total = np.sum((y_true - np.mean(y_true)) ** 2)  # Total sum of squares
-    r_squared = 1 - (ss_res / ss_total)
-
-    return r_squared
 
 
 def save_model(model, snp_data_loc, override=False):
@@ -459,15 +340,6 @@ def load_model(snp_data_loc):
     - model: The loaded TensorFlow model if it exists, otherwise returns None.
     """
 
-    # def vae_loss(x, x_reconstructed):
-    #     z_mean, z_log_var = tf.split(hyp_optimize_cc_VAE.VAE.(x), num_or_size_splits=2, axis=1)
-    #     reconstruction_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(x, x_reconstructed))
-    #     kl_loss = -0.5 * tf.reduce_mean(1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var), axis=-1)
-    #     return reconstruction_loss + kl_loss
-    #
-    # Register the VAE loss function
-    #
-    # keras.utils.get_custom_objects().update({'vae_loss': loss})
 
     directory = f"{os.getcwd()}/model"
     filename = f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}.keras"
@@ -550,214 +422,6 @@ def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
         avg_pearson_corr_val,
     )
 
-
-# def cross_validate_vae(snp_data, best_model, n_splits=5, test_size=0.2, random_state=11):
-#     # Initialize lists to store MSE and R-squared values for all folds
-#     mse_train_list = []
-#     mse_val_list = []
-#     r2_train_list = []
-#     r2_val_list = []
-#     r2_train_list_py = []
-#     r2_val_list_py = []
-#
-#     # Perform K-fold cross-validation
-#     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-#
-#     # Iterate over cross-validation folds
-#     for train_index, val_index in kf.split(snp_data):
-#         # Split data into training and validation sets using indices from KFold
-#         X_train, X_val = snp_data.iloc[train_index], snp_data.iloc[val_index]
-#
-#         # Train your VAE model using X_train
-#         # (Make sure best_model is trained before this step)
-#
-#         # Reconstruct the input data using the trained VAE model
-#         reconstructed_data_train = best_model.predict(X_train)
-#         reconstructed_data_val = best_model.predict(X_val)
-#
-#         # Calculate MSE for both training and validation sets
-#         mse_train_cv = np.mean(np.square(X_train - reconstructed_data_train))
-#         mse_val = np.mean(np.square(X_val - reconstructed_data_val))
-#
-#         # Calculate R-squared for the original data
-#         r2_train_py = r2_score(X_train, reconstructed_data_train)
-#         # Calculate R-squared for the reconstructed data
-#         r2_val_py = r2_score(X_val, reconstructed_data_val)
-#
-#         r2_train_cv = evaluate_r2(X_train, reconstructed_data_train)
-#         # Calculate R-squared for the reconstructed data
-#         r2_val = evaluate_r2(X_val, reconstructed_data_val)
-#
-#         # Append MSE and R-squared values to lists
-#         mse_train_list.append(mse_train_cv)
-#         mse_val_list.append(mse_val)
-#
-#         r2_train_list.append(r2_train_cv)
-#         r2_val_list.append(r2_val)
-#
-#         r2_train_list_py.append(r2_train_py)
-#         r2_val_list_py.append(r2_val_py)
-#
-#     # Calculate average MSE and R-squared values over all folds
-#     avg_mse_train = np.mean(mse_train_list)
-#     avg_mse_val = np.mean(mse_val_list)
-#     avg_r2_train = np.mean(r2_train_list)
-#     avg_r2_val = np.mean(r2_val_list)
-#
-#     avg_r2_train_py = np.mean(r2_train_list_py)
-#     avg_r2_val_py = np.mean(r2_val_list_py)
-#
-#     return avg_mse_train, avg_mse_val, avg_r2_train, avg_r2_val, avg_r2_train_py, avg_r2_val_py
-# def cross_validate_classifier(X, y, model_builder, n_splits=5, random_state=11):
-#     """
-#     Parameters
-#     ----------
-#     model_builder : callable
-#         Returns a *new* untrained estimator (Pipeline, sklearn model, or
-#         KerasClassifier).  We call it once per fold.
-#     """
-#     X = np.asarray(X)
-#     y = np.asarray(y)
-#
-#     skf = StratifiedKFold(n_splits=n_splits, shuffle=True,
-#                           random_state=random_state)
-#
-#     acc_train, acc_val = [], []
-#     auc_train, auc_val = [], []
-#
-#     for train_idx, val_idx in skf.split(X, y):
-#         X_tr, X_val = X[train_idx], X[val_idx]
-#         y_tr, y_val = y[train_idx], y[val_idx]
-#
-#         # Fresh clone/build for the current fold
-#         model = model_builder()
-#
-#         # If the model is NOT already in a pipeline, wrap with scaler here
-#         if not isinstance(model, Pipeline):
-#             model = Pipeline([
-#                 ('scaler', StandardScaler()),   # fit on *this* fold’s train set
-#                 ('clf',   model)
-#             ])
-#
-#         model.fit(X_tr, y_tr)
-#
-#         # Probabilities if available (decision_function fallback), else labels
-#         def proba(est, X_):
-#             if hasattr(est, "predict_proba"):
-#                 return est.predict_proba(X_)[:, 1]
-#             elif hasattr(est, "decision_function"):
-#                 return est.decision_function(X_)
-#             else:  # keras wrapper returns probabilities directly
-#                 preds = est.predict(X_, verbose=0).ravel()
-#                 return preds
-#
-#         y_tr_proba = proba(model, X_tr)
-#         y_val_proba = proba(model, X_val)
-#
-#         y_tr_pred = (y_tr_proba > 0.5).astype(int)
-#         y_val_pred = (y_val_proba > 0.5).astype(int)
-#
-#         acc_train.append(accuracy_score(y_tr, y_tr_pred))
-#         acc_val.append(accuracy_score(y_val, y_val_pred))
-#
-#         auc_train.append(roc_auc_score(y_tr, y_tr_proba))
-#         auc_val.append(roc_auc_score(y_val, y_val_proba))
-#
-#     return (np.mean(acc_train), np.mean(acc_val),
-#             np.mean(auc_train), np.mean(auc_val))
-
-# def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
-#     """
-#     Cross-validate the classifier and calculate average accuracy, AUC, and R² scores.
-#
-#     Parameters:
-#     X (numpy array or tf.Tensor): Feature matrix.
-#     y (numpy array or tf.Tensor): Labels.
-#     model (tf.keras.Model or Scikit-Learn Model): The classifier model.
-#     n_splits (int): Number of cross-validation splits.
-#     random_state (int): Random state for reproducibility.
-#
-#     Returns:
-#     tuple: Average accuracy, AUC, and R² scores for training and validation sets.
-#     """
-#     # Convert TensorFlow tensors to NumPy arrays if necessary
-#     if isinstance(X, tf.Tensor):
-#         X = X.numpy()
-#     if isinstance(y, tf.Tensor):
-#         y = y.numpy()
-#
-#     # Initialize lists to store accuracy, AUC, and R² scores for all folds
-#     accuracy_train_list = []
-#     accuracy_val_list = []
-#     auc_train_list = []
-#     auc_val_list = []
-#     r2_train_list = []
-#     r2_val_list = []
-#
-#     # Perform K-fold cross-validation
-#     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-#
-#     # Iterate over cross-validation folds
-#     for train_index, val_index in kf.split(X):
-#         # Split data into training and validation sets using indices from KFold
-#         X_train, X_val = X[train_index], X[val_index]
-#         y_train, y_val = y[train_index], y[val_index]
-#
-#         # Check if the model is a Keras/TensorFlow model or a Scikit-Learn model
-#         if isinstance(model, tf.keras.Model):
-#             # Train the TensorFlow/Keras model
-#             # model.fit(X_train, y_train)  # Adjust these parameters as needed
-#
-#             # Predict probabilities for both training and validation sets
-#             y_train_pred_proba = model.predict(X_train)
-#             y_val_pred_proba = model.predict(X_val)
-#
-#         else:
-#             # Train the Scikit-Learn model
-#             # model.fit(X_train, y_train)
-#
-#             # Predict probabilities for both training and validation sets
-#             if hasattr(model, "predict_proba"):
-#                 y_train_pred_proba = model.predict_proba(X_train)[:, 1]
-#                 y_val_pred_proba = model.predict_proba(X_val)[:, 1]
-#             else:
-#                 # For models that do not support predict_proba, use predict
-#                 y_train_pred_proba = model.predict(X_train)
-#                 y_val_pred_proba = model.predict(X_val)
-#
-#         # Convert predicted probabilities to binary predictions
-#         y_train_pred = (y_train_pred_proba > 0.5).astype(int).flatten()
-#         y_val_pred = (y_val_pred_proba > 0.5).astype(int).flatten()
-#
-#         # Calculate accuracy and AUC scores
-#         accuracy_train = accuracy_score(y_train, y_train_pred)
-#         accuracy_val = accuracy_score(y_val, y_val_pred)
-#
-#         auc_train = roc_auc_score(y_train, y_train_pred_proba)
-#         auc_val = roc_auc_score(y_val, y_val_pred_proba)
-#
-#         # Calculate R² scores
-#         r2_train = evaluate_r2(y_train, y_train_pred)
-#         r2_val = evaluate_r2(y_val, y_val_pred)
-#
-#         # Append accuracy, AUC, and R² scores to lists
-#         accuracy_train_list.append(accuracy_train)
-#         accuracy_val_list.append(accuracy_val)
-#         auc_train_list.append(auc_train)
-#         auc_val_list.append(auc_val)
-#         # r2_train_list.append(r2_train)
-#         # r2_val_list.append(r2_val)
-#
-#     # Calculate average accuracy, AUC, and R² scores over all folds
-#     avg_accuracy_train = np.mean(accuracy_train_list)
-#     avg_accuracy_val = np.mean(accuracy_val_list)
-#
-#     avg_auc_train = np.mean(auc_train_list)
-#     avg_auc_val = np.mean(auc_val_list)
-#
-#     # avg_r2_train = np.mean(r2_train_list)
-#     # avg_r2_val = np.mean(r2_val_list)
-#
 #     return avg_accuracy_train, avg_accuracy_val, avg_auc_train, avg_auc_val
 def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
     """

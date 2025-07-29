@@ -95,7 +95,7 @@ python runner/AE_latent_space_embedding.py <genotype_file.raw> <genotype_file.bi
 ### 2. Latent Space Classification
 
 ```bash
-python runner/latent_space_classifier_with_more_classifier.py <genotype_file.raw>
+python runner/latent_space_predictor.py <genotype_file.raw>
 ```
 
 **Classifiers Implemented:**
