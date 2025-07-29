@@ -58,7 +58,7 @@ Your genotype data should be in PLINK binary format (.bed, .bim, .fam files). Th
 
 #### For Variational Autoencoder (VAE)
 ```bash
-python runner/VAE_get_recon_cc_quant.py <genotype_file.raw> <genotype_file.bim> <phenotype_type>
+python runner/rbam_main.py <genotype_file.raw> <genotype_file.bim> <phenotype_type>
 ```
 
 **Parameters:**
@@ -68,7 +68,7 @@ python runner/VAE_get_recon_cc_quant.py <genotype_file.raw> <genotype_file.bim> 
 
 **Example:**
 ```bash
-python runner/VAE_get_recon_cc_quant.py data/diabetes.raw data/diabetes.bim cc
+python runner/rbam_main.py data/diabetes.raw data/diabetes.bim cc
 ```
 
 **Output:**
@@ -78,7 +78,7 @@ python runner/VAE_get_recon_cc_quant.py data/diabetes.raw data/diabetes.bim cc
 
 #### For Vanilla Autoencoder with XAI
 ```bash
-python runner/AE_latent_space_embedding.py <genotype_file.raw> <genotype_file.bim> <phenotype_type>
+python runner/rbam_XAI_main.py <genotype_file.raw> <genotype_file.bim> <phenotype_type>
 ```
 
 **Features:**

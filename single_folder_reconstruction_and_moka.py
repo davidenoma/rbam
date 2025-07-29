@@ -9,8 +9,8 @@ PLINK_PATH = "plink"  # Update to the full path if PLINK is not in your $PATH
 PYTHON_PATH = "python3"  # Update to the full path if needed
 
 GENO_UTILS_PATH = os.path.join(os.path.dirname(__file__), "utils/update_config_file.py")
-AE_PATH = os.path.join(os.path.dirname(__file__), "runner/AE_latent_space_embedding.py")
-VAE_PATH = os.path.join(os.path.dirname(__file__),"runner/VAE_get_recon_cc_quant.py")
+AE_PATH = os.path.join(os.path.dirname(__file__), "runner/rbam_XAI_main.py")
+VAE_PATH = os.path.join(os.path.dirname(__file__),"runner/rbam_main.py")
 MERGE_WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), "utils/merge_enc_and_dec_weights.py")
 BAS_PIPELINE_PATH = os.path.expanduser("~/moka")  # Pre-cloned path of moka_pipeline
 
