@@ -211,44 +211,16 @@ n_train, p_train = X_train.shape
 n_test, p_test = X_test.shape
 n_whole, p_whole = snp_data.shape
 
-adj_r2_train = utils.adjusted_r2_score(X_train, reconstructed_data_train, n_train, p_train)
-adj_r2_test = utils.adjusted_r2_score(X_test, reconstructed_data_test, n_test, p_test)
-adj_r2_whole = utils.adjusted_r2_score(snp_data, reconstructed_full_data, n_whole, p_whole)
-
-# Pearson Correlation of reconstruction
-pearson_corr_train = utils.compute_pearson_correlation(X_train, reconstructed_data_train)
-pearson_corr_test = utils.compute_pearson_correlation(X_test, reconstructed_data_test)
-pearson_corr_whole = utils.compute_pearson_correlation(snp_data, reconstructed_full_data)
-
-# Save Adjusted R², Pearson Correlation, and RMSE
-utils.save_adjusted_r2_and_pearson_corr(
-    snp_data_loc,
-    adj_r2_train, adj_r2_test, adj_r2_whole,
-    pearson_corr_train, pearson_corr_test, pearson_corr_whole,
-    rmse_train, rmse_test, rmse_whole,
-    hopt="hopt_AE"
-)
-
 # Print results
 print("MSE (Train):", mse_train)
 print("MSE (Test):", mse_test)
 print("MSE (Whole):", mse_whole)
 
-print("RMSE (Train):", rmse_train)
-print("RMSE (Test):", rmse_test)
-print("RMSE (Whole):", rmse_whole)
 
 print("R² (Train):", r2_train)
 print("R² (Test):", r2_test)
 print("R² (Whole):", r2_whole)
 
-print("Adjusted R² (Train):", adj_r2_train)
-print("Adjusted R² (Test):", adj_r2_test)
-print("Adjusted R² (Whole):", adj_r2_whole)
-
-print("Pearson Correlation (Train):", pearson_corr_train)
-print("Pearson Correlation (Test):", pearson_corr_test)
-print("Pearson Correlation (Whole):", pearson_corr_whole)
 
 # print(samples)
 # Loop through samples, calculate SHAP values, and accumulate
@@ -303,71 +275,3 @@ plt.savefig(f"{shap_save_dir}/shap_bar_plot_total.png")
 
 sys.exit()
 
-# === Latent Space Classifier Section ===
-
-# Extract latent space
-latent_space_train = best_model.get_latent_space(X_train)
-latent_space_test = best_model.get_latent_space(X_test)
-
-# Classifiers
-classifiers = {
-    'Logistic Regression': LogisticRegression(),
-    'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
-    'XGBoost': XGBClassifier(eval_metric='logloss'),
-    'Neural Network': tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(latent_space_train.shape[1],)),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dense(1, activation='sigmoid')
-    ])
-}
-
-
-# Train and evaluate classifiers
-def benchmark_classifiers(X_train, y_train, X_test, y_test, output_file):
-    results = {}
-    with open(output_file, 'w') as f:
-        for name, clf in classifiers.items():
-            if name == 'Neural Network':
-                # Special training for Neural Network
-                clf.compile(optimizer=tf.keras.optimizers.Adam(), loss='binary_crossentropy', metrics=['accuracy'])
-                clf.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2, verbose=1)
-                test_pred = (clf.predict(X_test) > 0.5).astype(int).flatten()
-            else:
-                clf.fit(X_train, y_train)
-                test_pred = clf.predict(X_test)
-
-            test_accuracy = accuracy_score(y_test, test_pred)
-
-            # Calculate probabilities for AUC
-            if name == 'Neural Network':
-                test_pred_proba = clf.predict(X_test).flatten()
-            elif hasattr(clf, "predict_proba"):
-                test_pred_proba = clf.predict_proba(X_test)[:, 1]
-            else:
-                test_pred_proba = test_pred  # Use predictions if predict_proba not available
-
-                # Calculate AUC for classifiers
-                test_auc = roc_auc_score(y_test, test_pred_proba)
-
-                # Store results
-                results[name] = {'Test Accuracy': test_accuracy, 'Test AUC': test_auc}
-
-                # Write the results to the output file
-                f.write(f"{name} Results:\n")
-                f.write(f"  Test Accuracy: {test_accuracy:.4f}\n")
-                f.write(f"  Test AUC: {test_auc:.4f}\n")
-                f.write("\n")
-
-                # Print results to the console
-                print(f"{name} - Test Accuracy: {test_accuracy:.4f}, Test AUC: {test_auc:.4f}")
-
-            return results
-
-        # Save classifier results to the output file
-        output_file = f"model_outputs/hopt_AE/AE_classifier_results_{os.path.basename(snp_data_loc)}.txt"
-        classifier_results = benchmark_classifiers(latent_space_train, y_train, latent_space_test, y_test, output_file)
-
-        # Print classifier metrics for all classifiers
-        for name, metrics in classifier_results.items():
-            print(f"{name} - Test Accuracy: {metrics['Test Accuracy']:.4f}, Test AUC: {metrics['Test AUC']:.4f}")

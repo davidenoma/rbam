@@ -229,8 +229,8 @@ def save_plots(history, snp_data_loc, hopt=None):
 
 
 
-def save_classifier_metrics(snp_data_loc, train_accuracy, train_auc, test_accuracy, test_auc, ind_test_accuracy,
-                            ind_test_auc, hopt=None):
+def save_classifier_metrics(snp_data_loc, train_accuracy, train_auc, test_accuracy, test_auc,
+                         hopt=None):
     """
     Save the classifier metrics including accuracy, AUC, and R² to a file.
 
@@ -264,9 +264,7 @@ def save_classifier_metrics(snp_data_loc, train_accuracy, train_auc, test_accura
         file.write(f"Test Accuracy: {test_accuracy}\n")
         file.write(f"Test AUC: {test_auc}\n")
         # file.write(f"Test R²: {test_r2}\n")
-        file.write(f"Independent Test Accuracy: {ind_test_accuracy}\n")
-        file.write(f"Independent Test AUC: {ind_test_auc}\n")
-        # file.write(f"Independent Test R²: {ind_test_r2}\n")
+
 
 
 def obtain_snps_and_weights(X_train, feature_importance, bim, snp_data_loc, feature_type, hopt=None):
@@ -470,494 +468,79 @@ def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
     return (np.mean(acc_tr),  np.mean(acc_val),
             np.mean(auc_tr), np.mean(auc_val))
 
-def cross_validate_regressor(X, y, model, n_splits=5, random_state=11, best_epochs=None):
-    """
-    Cross-validate the regressor and calculate average MSE, R-squared scores, and Pearson correlation.
-
-    Parameters:
-    X (numpy array or tf.Tensor): Feature matrix.
-    y (numpy array or pandas Series or tf.Tensor): Labels.
-    model (tf.keras.Model or Scikit-Learn Model): The regressor model.
-    n_splits (int): Number of cross-validation splits.
-    random_state (int): Random state for reproducibility.
-    best_epochs (int, optional): Number of epochs to use for TensorFlow/Keras models. If None, defaults to 50.
-
-    Returns:
-    tuple: Average MSE, R-squared scores, and Pearson correlation for training and validation sets.
-    """
-    # Convert TensorFlow tensors to NumPy arrays if necessary
-    if isinstance(X, tf.Tensor):
-        X = X.numpy()
-    if isinstance(y, tf.Tensor):
-        y = y.numpy()
-
-    # Initialize lists to store metrics for all folds
-    mse_train_list = []
-    mse_val_list = []
-    r2_train_list = []
-    r2_val_list = []
-    pearson_train_list = []
-    pearson_val_list = []
-
-    # Perform K-fold cross-validation
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-
-    # Iterate over cross-validation folds
-    for train_index, val_index in kf.split(X):
-        # Split data into training and validation sets using indices from KFold
-        X_train, X_val = X[train_index], X[val_index]
-        y_train, y_val = y[train_index], y[val_index]
-
-        # Check if the model is a Keras/TensorFlow model or a Scikit-Learn model
-        if isinstance(model, tf.keras.Model):
-            # Use the best number of epochs if provided; otherwise, default to 50
-            epochs_to_use = best_epochs if best_epochs is not None else 50
-
-            # Train the TensorFlow/Keras model
-            # model.fit(X_train, y_train)
-
-            # Predict values for both training and validation sets
-            y_train_pred = model.predict(X_train).flatten()
-            y_val_pred = model.predict(X_val).flatten()
-
-        else:
-            # Train the Scikit-Learn model
-            model.fit(X_train, y_train)
-
-            # Predict values for both training and validation sets
-            y_train_pred = model.predict(X_train)
-            y_val_pred = model.predict(X_val)
-
-        # Calculate MSE for both training and validation sets
-        mse_train = mean_squared_error(y_train, y_train_pred)
-        mse_val = mean_squared_error(y_val, y_val_pred)
-
-        # Calculate R-squared for both training and validation sets
-        r2_train = r2_score(y_train, y_train_pred)
-        r2_val = r2_score(y_val, y_val_pred)
-
-        # Calculate Pearson correlation for both training and validation sets
-        pearson_train, _ = pearsonr(y_train.values.flatten(), y_train_pred.flatten())
-        pearson_val, _ = pearsonr(y_val.values.flatten(), y_val_pred.flatten())
-
-        # Append metrics to lists
-        mse_train_list.append(mse_train)
-        mse_val_list.append(mse_val)
-        r2_train_list.append(r2_train)
-        r2_val_list.append(r2_val)
-        pearson_train_list.append(pearson_train)
-        pearson_val_list.append(pearson_val)
-
-    # Calculate average metrics over all folds
-    avg_mse_train = np.mean(mse_train_list)
-    avg_mse_val = np.mean(mse_val_list)
-    avg_r2_train = np.mean(r2_train_list)
-    avg_r2_val = np.mean(r2_val_list)
-    avg_pearson_train = np.mean(pearson_train_list)
-    avg_pearson_val = np.mean(pearson_val_list)
-
-    return avg_mse_train, avg_mse_val, avg_r2_train, avg_r2_val, avg_pearson_train, avg_pearson_val
 
 
-def save_regressor_metrics(snp_data_loc, train_mse, train_r2, test_mse, test_r2, ind_test_mse, ind_test_r2,
-                           avg_pearson_train, avg_pearson_val, ind_test_pearson, hopt=None):
+def save_mse_values(snp_data_loc, mse_train, mse_test, mse_whole, hopt=None):
     output_folder = "model_outputs"
-
     if hopt:
-        output_folder = os.path.join(output_folder, hopt)
-
+        output_folder = output_folder + "/" + hopt
     os.makedirs(output_folder, exist_ok=True)
 
-    # Print the metrics
-    print('Saving for :',hopt)
-    # print("Train MSE:", train_mse)
-    # print("Train R-squared:", train_r2)
-    print("Test MSE:", test_mse)
-    print("Test R-squared:", test_r2)
-    print("Independent Test MSE:", ind_test_mse)
-    print("Independent Test R-squared:", ind_test_r2)
-    # print("Train Pearson Correlation:", avg_pearson_train)
-    print("Validation Pearson Correlation:", avg_pearson_val)
-    print("Independent Test Pearson Correlation:", ind_test_pearson)
+    # Print the MSE values
+    print("Mean Squared Error (MSE) between original and reconstructed train data:", mse_train)
+    print("Mean Squared Error (MSE) between input and reconstructed test data:", mse_test)
+    print("Mean Squared Error (MSE) between input and reconstructed whole data:", mse_whole)
 
-    # Write the metrics to a file
-    with open(os.path.join(output_folder,
-                           f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_regressor_metrics.txt"),
+    # Write the MSE values to a file
+    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_mse_results.txt"),
               "w") as file:
-        file.write("Train MSE: " + str(train_mse) + "\n")
-        file.write("Train R-squared: " + str(train_r2) + "\n")
-        file.write("Test MSE: " + str(test_mse) + "\n")
-        file.write("Test R-squared: " + str(test_r2) + "\n")
-        file.write("Independent Test MSE: " + str(ind_test_mse) + "\n")
-        file.write("Independent Test R-squared: " + str(ind_test_r2) + "\n")
-        file.write("Train Pearson Correlation: " + str(avg_pearson_train) + "\n")
-        file.write("Validation Pearson Correlation: " + str(avg_pearson_val) + "\n")
-        file.write("Independent Test Pearson Correlation: " + str(ind_test_pearson) + "\n")
+        file.write(
+            "Mean Squared Error (MSE) between original and reconstructed original train data: " + str(mse_train) + "\n")
+        file.write("Mean Squared Error (MSE) between reconstructed test data: " + str(mse_test) + "\n")
+        file.write("Mean Squared Error (MSE) between reconstructed whole data: " + str(mse_whole) + "\n")
 
 
-
-import os
-import pandas as pd
-from scipy.stats import f
-
-
-def compute_p_value(r2, n, k=1):
-    f_stat = (r2 / k) / ((1 - r2) / (n - k - 1))
-    p_value = 1 - f.cdf(f_stat, dfn=k, dfd=(n - k - 1))  # Degrees of freedom: dfn=k, dfd=(n - k - 1)
-    return p_value, f_stat
-
-
-def compute_snp_p_values(snp_data_loc, r2_values, n_samples, bim_file, hopt=None):
-    output_folder = "model_outputs"
-
-    if hopt:
-        output_folder = os.path.join(output_folder, hopt)
-    output_file = os.path.join(output_folder,
-                               f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_f_stats_p_values.txt")
-
-    # Read the BIM file
-    bim_data = pd.read_csv(bim_file, sep="\t", header=None)
-    bim_data.columns = ['Chromosome', 'SNP', 'GeneticDist', 'Position', 'Allele1', 'Allele2']
-    # Prepare lists to store results
-    p_values = []
-    f_stats = []
-    effect_sizes = []
-    matched_snps = []
-    matched_chromosomes = []
-    matched_positions = []
-    r2s = []
-
-    # Match R² SNPs to the BIM file
-    for snp_id, r2 in r2_values.items():  # Use SNP IDs from r2_values as the index
-        snp_id = str(snp_id)[:-2]  # Ensure SNP ID is in correct format
-        snp_info = bim_data[bim_data['SNP'] == snp_id]  # Match SNP ID with the BIM file
-        # print(snp_info)
-        if not snp_info.empty:  # Ensure we have a match
-            p_value, f_stat = compute_p_value(r2, n_samples)  # Compute p-value and F-statistic
-            f2 = r2 / (1 - r2)  # Compute effect size (Cohen's f²)
-
-            p_values.append(p_value)
-            f_stats.append(f_stat)
-            effect_sizes.append(f2)
-            matched_snps.append(snp_id)  # Use the matched SNP ID
-            r2s.append(r2)  # Store the R² value
-            matched_chromosomes.append(snp_info['Chromosome'].values[0])  # Add chromosome info
-            matched_positions.append(snp_info['Position'].values[0])  # Add position info
-            # print()
-    # Create a DataFrame with matched SNP information, R², p-values, F-statistics, and effect sizes
-    p_value_df = pd.DataFrame({
-        'SNP': matched_snps,  # Matched SNPs based on the index from r2_whole_scores
-        'Chromosome': matched_chromosomes,  # Chromosome information
-        'Position': matched_positions,  # Position information
-        'R2': r2s,  # R² values (ensure the values are aligned with matched SNPs)
-        'F-stat': f_stats,  # F-statistics
-        'p-value': p_values,  # Computed p-values
-        'Effect Size (f²)': effect_sizes  # Computed effect sizes
-    })
-
-    # Save the p-value DataFrame to a CSV file
-    os.makedirs(output_folder, exist_ok=True)  # Create output folder if it doesn't exist
-    p_value_df.to_csv(output_file, index=False)
-    print(f"SNP p-values, effect sizes, and genomic positions saved to {output_file}")
-
-
-import seaborn as sns
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
-
-
-def plot_latent_space_clustering(snp_data_loc, vae_model, X_data, method='tsne', n_components=2, hopt=None):
-    """
-    Visualize the latent space clustering of the VAE model.
-
-    Args:
-        vae_model (tf.keras.Model): The trained VAE model.
-        X_data (pd.DataFrame or np.ndarray): Input genotype data (individuals x SNPs).
-        labels (pd.Series or np.ndarray): Labels for the individuals (e.g., case/control or phenotypes).
-        method (str): Dimensionality reduction method ('tsne' or 'pca').
-        n_components (int): Number of dimensions to reduce to (default is 2).
-    """
-    # Ensure data is in NumPy format
-    # if isinstance(X_data, pd.DataFrame):
-    #     X_data = X_data.values
-    output_folder = "model_outputs"
-
-    if hopt:
-        output_folder = os.path.join(output_folder, hopt)
-
-    # Get the latent space representation from the encoder
-    encoder = vae_model.encoder
-    z_mean, _ = tf.split(encoder.predict(X_data), num_or_size_splits=2, axis=1)
-    print(z_mean)
-    # Perform dimensionality reduction
-    if method == 'tsne':
-        print("Applying t-SNE for dimensionality reduction...")
-        reduced_latent = TSNE(n_components=n_components).fit_transform(z_mean)
-    elif method == 'pca':
-        print("Applying PCA for dimensionality reduction..")
-        reduced_latent = PCA(n_components=n_components).fit_transform(z_mean)
-    else:
-        raise ValueError("Invalid method. Choose 'tsne' or 'pca'.")
-
-    # Create a scatter plot of the reduced latent space
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x=reduced_latent[:, 0], y=reduced_latent[:, 1], palette='Set1', s=60, alpha=0.8)
-    plt.title(f'Latent Space Clustering using {method.upper()}', fontsize=16)
-    plt.xlabel('Component 1', fontsize=12)
-    plt.ylabel('Component 2', fontsize=12)
-    # plt.legend(title='Labels', loc='best')
-    plt.savefig(
-        os.path.join(output_folder,
-                     f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_{method.upper()}_clustering.png"))
-    plt.show()
-
-
-def permutation_feature_importance(snp_data_loc, X_original, X_reconstructed, model, snp_ids, n_permutations=5,
-                                   hopt=None):
-    """
-    Compute permutation feature importance for each SNP by evaluating the drop in R² score and save the results to a CSV file.
-
-    Args:
-        X_original (pd.DataFrame or np.ndarray): Original genotype matrix (individuals x SNPs).
-        X_reconstructed (pd.DataFrame or np.ndarray): Reconstructed genotype matrix (individuals x SNPs).
-        model (tf.keras.Model): The trained VAE model used for reconstruction.
-        snp_ids (list or pd.Series): List or Series of SNP IDs corresponding to columns of the genotype matrix.
-        n_permutations (int): Number of times to permute each SNP.
-        output_file (str): Path to the file where the results will be saved (default: 'permutation_importance_scores.csv').
-
-    Returns:
-        importance_scores (pd.Series): The drop in R² score for each SNP, indexed by SNP ID.
-    """
-    output_folder = "model_outputs"
-
-    if hopt:
-        output_folder = os.path.join(output_folder, hopt)
-        output_file = os.path.join(output_folder,
-                                   f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_{n_permutations}_permutation_scores.txt")
-    if isinstance(X_original, pd.DataFrame):
-        X_original = X_original.values
-
-    # Initialize an array to store the R² drop for each SNP
-    importance_scores = np.zeros(X_original.shape[1])
-
-    # Compute the baseline R² for each SNP
-    r2_baseline = evaluate_r2(X_original, X_reconstructed)
-
-    for snp_idx in range(X_original.shape[1]):  # Loop through SNPs by index
-        r2_permuted_list = []
-
-        for _ in range(n_permutations):
-            # Shuffle the SNP values for this particular SNP
-            X_permuted = X_original.copy()
-            np.random.shuffle(X_permuted[:, snp_idx])  # Shuffle SNP column
-
-            # Reconstruct using the model with permuted SNP
-            X_reconstructed_permuted = model.predict(X_permuted)
-
-            # Compute R² after permutation for the specific SNP
-            r2_permuted = evaluate_r2(X_original, X_reconstructed_permuted)
-            r2_permuted_list.append(r2_permuted[snp_idx])
-
-        # Compute the mean R² after permutation and compare it to the baseline
-        mean_r2_permuted = np.mean(r2_permuted_list)
-        importance_scores[snp_idx] = r2_baseline[snp_idx] - mean_r2_permuted
-
-    # Convert the importance scores into a pandas Series, indexed by SNP IDs
-    importance_series = pd.Series(importance_scores, index=snp_ids, name='Feature Importance')
-
-    # Save the importance scores to a CSV file
-    importance_series.to_csv(output_file, index=True)
-    print(f"Permutation importance scores saved to {output_file}")
-
-    return importance_series
-
-
-def rank_distance_correlation(X, Z):
-    """
-    Compute Rank Distance Correlation (RdCorr) between each feature in X and the latent representation Z.
-
-    Args:
-        X (np.ndarray): Original input matrix (samples x features).
-        Z (np.ndarray): Latent space representation (samples x latent dimensions).
-
-    Returns:
-        rdc_scores (np.ndarray): Rank distance correlation scores for each feature in X.
-    """
-    n_samples, n_features = X.shape
-    rdc_scores = np.zeros(n_features)
-
-    for i in range(n_features):
-        # Compute pairwise distances for the i-th feature and the latent space
-        d_X = pairwise_distances(X[:, [i]], metric='euclidean')
-        d_Z = pairwise_distances(Z, metric='euclidean')
-
-        # Compute rank transformation of distances
-        rank_X = np.argsort(np.argsort(d_X, axis=0), axis=0)
-        rank_Z = np.argsort(np.argsort(d_Z, axis=0), axis=0)
-
-        # Compute the rank distance covariance
-        cov_XZ = np.sum((rank_X - rank_X.mean()) * (rank_Z - rank_Z.mean())) / n_samples
-        var_X = np.sum((rank_X - rank_X.mean()) ** 2) / n_samples
-        var_Z = np.sum((rank_Z - rank_Z.mean()) ** 2) / n_samples
-
-        # Calculate Rank Distance Correlation (RdCorr)
-        rdc_scores[i] = cov_XZ / np.sqrt(var_X * var_Z)
-
-    return rdc_scores
-
-
-def compute_snp_rdc_scores(snp_data_loc,vae_model, X_data, snp_ids, hopt=None):
-    """
-    Compute Rank Distance Correlation (RdCorr) scores for each SNP feature.
-
-    Args:
-        snp_data_loc:
-        vae_model (tf.keras.Model): Trained VAE model.
-        X_data (pd.DataFrame or np.ndarray): Input genotype data (individuals x SNPs).
-        snp_ids (pd.Series or list): List or Series of SNP IDs corresponding to columns of the genotype matrix.
-        hopt (str): Optional string for hyperopt or other directory handling.
-
-    Returns:
-        pd.DataFrame: DataFrame with SNPs and their corresponding RdCorr scores.
-    """
+def save_mse_values_cv(snp_data_loc, mse_train, mse_test, hopt=None):
     output_folder = "model_outputs"
     if hopt:
-        output_folder = os.path.join(output_folder, hopt)
+        output_folder = output_folder + "/" + hopt
     os.makedirs(output_folder, exist_ok=True)
-    output_file = os.path.join(output_folder,
-                               f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_rdcorr_scores.csv")
 
-    if isinstance(X_data, pd.DataFrame):
-        X_data = X_data.values
+    # Print the MSE values
+    print("Mean Squared Error (MSE) between original and reconstructed train data:", mse_train)
+    print("Mean Squared Error (MSE) between input and reconstructed test data:", mse_test)
 
-    # Get the latent space representation from the encoder
-    encoder = vae_model.encoder
-    Z_mean, _ = tf.split(encoder.predict(X_data), num_or_size_splits=2, axis=1)  # Use z_mean from VAE
-
-    # Compute RdCorr for each SNP feature
-    rdc_scores = rank_distance_correlation(X_data, Z_mean)
-
-    # Create a DataFrame to store SNPs and their RdCorr scores
-    rdc_scores_df = pd.DataFrame({
-        'SNP': snp_ids,
-        'RdCorr': rdc_scores
-    })
-
-    # Save RdCorr scores to a CSV file
-    rdc_scores_df.to_csv(output_file, index=False)
-    print(f"Rank Distance Correlation (RdCorr) scores saved to {output_file}")
-
-    return rdc_scores_df
-
-# Additional metrics functions
-# Adjusted R^2 Calculation
-def adjusted_r2_score(y_true, y_pred, n, p):
-    """
-    Compute Adjusted R² score.
-
-    Parameters:
-        y_true (np.ndarray): True values.
-        y_pred (np.ndarray): Predicted values.
-        n (int): Number of observations.
-        p (int): Number of predictors.
-
-    Returns:
-        float: Adjusted R² score.
-    """
-    r2 = np.mean(utils.evaluate_r2(y_true, y_pred))
-    return 1 - ((1 - r2) * (n - 1)) / (n - p - 1)
+    # Write the MSE values to a file
+    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_mse_results.txt"),
+              "w") as file:
+        file.write(
+            "Mean Squared Error (MSE) between original and reconstructed original train data: " + str(mse_train) + "\n")
+        file.write("Mean Squared Error (MSE) between reconstructed test data: " + str(mse_test) + "\n")
 
 
-# Pearson Correlation
-
-
-
-
-def compute_pearson_correlation(y_true, y_pred):
-    """
-    Compute Pearson correlation coefficient between true and predicted values.
-
-    Parameters:
-        y_true (np.ndarray or pd.DataFrame): True values.
-        y_pred (np.ndarray or pd.DataFrame): Predicted values.
-
-    Returns:
-        float: Pearson correlation coefficient.
-    """
-    if isinstance(y_true, pd.DataFrame):
-        y_true = y_true.values
-    if isinstance(y_pred, pd.DataFrame):
-        y_pred = y_pred.values
-
-    corr, _ = pearsonr(y_true.flatten(), y_pred.flatten())
-    return corr
-
-
-def save_adjusted_r2_and_pearson_corr(snp_data_loc, adj_r2_train, adj_r2_test, adj_r2_whole,
-                                      pearson_corr_train, pearson_corr_test, pearson_corr_whole,
-                                      rmse_train, rmse_test, rmse_whole, hopt=None):
-    """
-    Save Adjusted R², Pearson Correlation, and RMSE metrics for train, test, and whole datasets.
-
-    Parameters:
-        snp_data_loc (str): File path for SNP data.
-        adj_r2_train (float): Adjusted R² for the training data.
-        adj_r2_test (float): Adjusted R² for the testing data.
-        adj_r2_whole (float): Adjusted R² for the entire dataset.
-        pearson_corr_train (float): Pearson Correlation for the training data.
-        pearson_corr_test (float): Pearson Correlation for the testing data.
-        pearson_corr_whole (float): Pearson Correlation for the entire dataset.
-        rmse_train (float): RMSE for the training data.
-        rmse_test (float): RMSE for the testing data.
-        rmse_whole (float): RMSE for the entire dataset.
-        hopt (str): Optional subdirectory for saving outputs.
-    """
+def save_r2_scores(snp_data_loc, r2_train, r2test, r2whole, hopt=None):
     output_folder = "model_outputs"
+
     if hopt:
         output_folder = os.path.join(output_folder, hopt)
 
     os.makedirs(output_folder, exist_ok=True)
+    # Print the R2 scores
+    print("R-squared (R2) for train data:", r2_train)
+    print("R-squared (R2) for  test data:", r2test)
+    print("R-squared (R2) for  whole data:", r2whole)
 
-    # Print the metrics
-    print("Adjusted R² (Train):", adj_r2_train)
-    print("Adjusted R² (Test):", adj_r2_test)
-    print("Adjusted R² (Whole):", adj_r2_whole)
-    print("Pearson Correlation (Train):", pearson_corr_train)
-    print("Pearson Correlation (Test):", pearson_corr_test)
-    print("Pearson Correlation (Whole):", pearson_corr_whole)
-    print("RMSE (Train):", rmse_train)
-    print("RMSE (Test):", rmse_test)
-    print("RMSE (Whole):", rmse_whole)
-
-    # Write the metrics to a file
-    metrics_file_path = os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_metrics.txt")
-    with open(metrics_file_path, "w") as metrics_file:
-        metrics_file.write(f"Adjusted R² (Train): {adj_r2_train}\n")
-        metrics_file.write(f"Adjusted R² (Test): {adj_r2_test}\n")
-        metrics_file.write(f"Adjusted R² (Whole): {adj_r2_whole}\n")
-        metrics_file.write(f"Pearson Correlation (Train): {pearson_corr_train}\n")
-        metrics_file.write(f"Pearson Correlation (Test): {pearson_corr_test}\n")
-        metrics_file.write(f"Pearson Correlation (Whole): {pearson_corr_whole}\n")
-        metrics_file.write(f"RMSE (Train): {rmse_train}\n")
-        metrics_file.write(f"RMSE (Test): {rmse_test}\n")
-        metrics_file.write(f"RMSE (Whole): {rmse_whole}\n")
-    print(f"Metrics saved to {metrics_file_path}")
+    # Write the R2 scores to a file
+    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_r2_results.txt"),
+              "w") as file:
+        file.write("R-squared (R2) for  train data: " + str(r2_train) + "\n")
+        file.write("R-squared (R2) for  test data: " + str(r2test) + "\n")
+        file.write("R-squared (R2) for  whole data: " + str(r2whole) + "\n")
 
 
-def compute_rmse(y_true, y_pred):
-    """
-    Compute Root Mean Squared Error (RMSE) between true and predicted values.
+def save_r2_scores_cv(snp_data_loc, r2_train, r2test, hopt=None):
+    output_folder = "model_outputs/cv"
 
-    Parameters:
-        y_true (np.ndarray or pd.DataFrame): True values.
-        y_pred (np.ndarray or pd.DataFrame): Predicted values.
+    if hopt:
+        output_folder = os.path.join(output_folder, hopt)
 
-    Returns:
-        float: RMSE score.
-    """
-    if isinstance(y_true, pd.DataFrame):
-        y_true = y_true.values
-    if isinstance(y_pred, pd.DataFrame):
-        y_pred = y_pred.values
+    os.makedirs(output_folder, exist_ok=True)
+    # Print the R2 scores
+    print("R-squared (R2) for train data:", r2_train)
+    print("R-squared (R2) for  test data:", r2test)
 
-    return np.sqrt(mean_squared_error(y_true, y_pred))
+    # Write the R2 scores to a file
+    with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_r2_results.txt"),
+              "w") as file:
+        file.write("R-squared (R2) for  train data: " + str(r2_train) + "\n")
+        file.write("R-squared (R2) for  test data: " + str(r2test) + "\n")

@@ -23,7 +23,7 @@ for device in physical_devices:
 import utils
 from utils import load_real_genotype_data, cross_validate_classifier, save_classifier_metrics, cross_validate_vae, \
     save_mse_values, save_r2_scores
-def save_model(model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
+def save_mode (model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
     """
     Save a TensorFlow model to a specified location.
 
@@ -65,64 +65,6 @@ scaler = StandardScaler()
 y_train = np.where(y_train == 1, 0, 1)
 y_test = np.where(y_test == 1, 0, 1)
 phenotype = np.where(phenotype == 1, 0, 1)
-
-# Generalized Downsampling Function
-
-import pandas as pd
-from sklearn.utils import resample
-
-def downsample_data(X, y):
-    """
-    Perform downsampling to balance the classes in the dataset.
-
-    Args:
-        X (pd.DataFrame): Feature matrix as a pandas DataFrame.
-        y (pd.Series): Target labels as a pandas Series.
-
-    Returns:
-        X_resampled (pd.DataFrame): Resampled feature matrix (DataFrame).
-        y_resampled (pd.Series): Resampled target labels (Series).
-    """
-    # Combine features and labels into a DataFrame for processing
-    data = X.copy()
-    data['label'] = y
-
-    # Identify the class counts
-    class_counts = data['label'].value_counts()
-    majority_class = class_counts.idxmax()
-    minority_class = class_counts.idxmin()
-
-    # Separate majority and minority classes
-    majority_class_data = data[data['label'] == majority_class]
-    minority_class_data = data[data['label'] == minority_class]
-
-    # Downsample the majority class
-    majority_class_downsampled = resample(
-        majority_class_data,
-        replace=False,  # sample without replacement
-        n_samples=len(minority_class_data),  # Match the minority class size
-        random_state=42  # For reproducibility
-    )
-
-    # Combine the downsampled majority class with the minority class
-    resampled_data = pd.concat([majority_class_downsampled, minority_class_data])
-
-    # Shuffle the data
-    resampled_data = resampled_data.sample(frac=1, random_state=42).reset_index(drop=True)
-
-    # Split into features and labels
-    X_resampled = resampled_data.drop(columns=['label'])
-    y_resampled = resampled_data['label']
-
-    return X_resampled, y_resampled
-
-
-#
-# # Apply downsampling to the training data
-# snp_data, phenotype = downsample_data(snp_data, phenotype)
-# X_train, y_train = downsample_data(X_train, y_train)
-# Test data remains unchanged
-# z_mean_test_resampled, y_test_resampled = z_mean_test, y_test
 
 
 # Extract SNP file name from path
@@ -291,10 +233,6 @@ mse_test = utils.compute_rmse(X_test, reconstructed_data_test)**2
 mse_whole = utils.compute_rmse(snp_data, reconstructed_full_data)**2
 utils.save_mse_values(snp_data_loc, mse_train, mse_test, mse_whole, hopt=hopt)
 
-# Calculate RMSE
-rmse_train = utils.compute_rmse(X_train, reconstructed_data_train)
-rmse_test = utils.compute_rmse(X_test, reconstructed_data_test)
-rmse_whole = utils.compute_rmse(snp_data, reconstructed_full_data)
 
 # Calculate R²
 r2_train = np.mean(utils.evaluate_r2(X_train, reconstructed_data_train))
@@ -303,29 +241,16 @@ r2_whole = np.mean(utils.evaluate_r2(snp_data, reconstructed_full_data))
 utils.save_r2_scores(snp_data_loc, r2_train, r2_test, r2_whole, hopt=hopt)
 
 
-# Calculate Pearson Correlation
-pearson_corr_train = utils.compute_pearson_correlation(X_train, reconstructed_data_train)
-pearson_corr_test = utils.compute_pearson_correlation(X_test, reconstructed_data_test)
-pearson_corr_whole = utils.compute_pearson_correlation(snp_data, reconstructed_full_data)
 
 # Print results
 print("MSE (Train):", mse_train)
 print("MSE (Test):", mse_test)
 print("MSE (Whole):", mse_whole)
 
-print("RMSE (Train):", rmse_train)
-print("RMSE (Test):", rmse_test)
-print("RMSE (Whole):", rmse_whole)
-
 print("R² (Train):", r2_train)
 print("R² (Test):", r2_test)
 print("R² (Whole):", r2_whole)
 
-
-
-print("Pearson Correlation (Train):", pearson_corr_train)
-print("Pearson Correlation (Test):", pearson_corr_test)
-print("Pearson Correlation (Whole):", pearson_corr_whole)
 
 print("Cross Validation")
 
@@ -361,15 +286,6 @@ print(_,z_mean_full)
 z_mean_train, _ = tf.split(encoder.predict(X_train), num_or_size_splits=2, axis=1)
 z_mean_test, _ = tf.split(encoder.predict(X_test), num_or_size_splits=2, axis=1)
 
-# z_mean_full, phenotype = downsample_data(z_mean_full, phenotype)
-# z_mean_train, phenotype = downsample_data(z_mean_train, phenotype)
-# # Test data remains unchanged
-# z_mean_test_resampled, y_test_resampled = z_mean_test, y_test
-
-# # Save latent space predictions
-# save_latent_space_predictions(z_mean_full, snp_data_loc, prefix="latent_space_full")
-# save_latent_space_predictions(z_mean_train, snp_data_loc, prefix="latent_space_train")
-# save_latent_space_predictions(z_mean_test, snp_data_loc, prefix="latent_space_test")
 
 
 # Scale latent space
@@ -506,16 +422,7 @@ for model_type, space in classifier_space.items():
 
 
     # Evaluate classifier
-    # phenotype_predictions_test = best_model.predict(z_mean_test)
-    # if model_type == 'tf_classifier':
-    #     phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
-    # else:
-    #     phenotype_predictions_test = best_model.predict_proba(z_mean_test)[:, 1]
-    #     phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
-    #
-    # ind_test_accuracy = accuracy_score(y_test, phenotype_predictions_test)
-    # ind_test_auc = roc_auc_score(y_test, phenotype_predictions_test)
-    # Evaluate classifier
+
     phenotype_predictions_test = best_model.predict(z_mean_test)
       # --- probabilities for AUC, thresholded classes for accuracy ---
 
@@ -525,22 +432,15 @@ for model_type, space in classifier_space.items():
             proba_test = best_model.predict_proba(z_mean_test)[:, 1]
 
     y_pred_test = (proba_test > 0.5).astype(int)
-    ind_test_accuracy = accuracy_score(y_test, y_pred_test)
-    ind_test_auc = roc_auc_score(y_test, proba_test)
-    # Adding R² evaluation
-    ind_test_r2 = utils.evaluate_r2(y_test, phenotype_predictions_test)
 
-    print(f"Independent Test Accuracy for {model_type} ({snp_file_name}): {ind_test_accuracy}")
-    print(f"Independent Test AUC for {model_type} ({snp_file_name}): {ind_test_auc}")
-    print(f"Independent Test R² for {model_type} ({snp_file_name}): {ind_test_r2}")
 
     # Cross-validation for each classifier
     avg_accuracy_train, avg_accuracy_val, avg_auc_train, avg_auc_val = cross_validate_classifier(
         z_mean_train, y_train, best_model)
 
     # Save classifier metrics, including R²
-    save_classifier_metrics(snp_data_loc, avg_accuracy_train, avg_auc_train, avg_accuracy_val, avg_auc_val,
-                            ind_test_accuracy, ind_test_auc,hopt=f"{hopt}/{model_type}")
+    save_classifier_metrics(snp_data_loc, avg_accuracy_train, avg_auc_train, avg_accuracy_val, avg_auc_val
+                            ,hopt=f"{hopt}/{model_type}")
 
     print(
         f"Cross-Validation Accuracy for {model_type} ({snp_file_name}) - Train: {avg_accuracy_train}, Test: {avg_accuracy_val}")
