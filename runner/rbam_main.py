@@ -197,16 +197,6 @@ reconstructed_data_train = best_model.predict(X_train)
 reconstructed_data_test = best_model.predict(X_test)
 reconstructed_full_data = best_model.predict(snp_data)
 
-# Calculate MSE
-mse_train = utils.compute_rmse(X_train, reconstructed_data_train)**2
-mse_test = utils.compute_rmse(X_test, reconstructed_data_test)**2
-mse_whole = utils.compute_rmse(snp_data, reconstructed_full_data)**2
-utils.save_mse_values(snp_data_loc, mse_train, mse_test, mse_whole, hopt=hopt)
-
-# Calculate RMSE
-rmse_train = utils.compute_rmse(X_train, reconstructed_data_train)
-rmse_test = utils.compute_rmse(X_test, reconstructed_data_test)
-rmse_whole = utils.compute_rmse(snp_data, reconstructed_full_data)
 
 # Calculate R²
 r2_train = np.mean(utils.evaluate_r2(X_train, reconstructed_data_train))
@@ -219,44 +209,17 @@ n_train, p_train = X_train.shape
 n_test, p_test = X_test.shape
 n_whole, p_whole = snp_data.shape
 
-adj_r2_train = utils.adjusted_r2_score(X_train, reconstructed_data_train, n_train, p_train)
-adj_r2_test = utils.adjusted_r2_score(X_test, reconstructed_data_test, n_test, p_test)
-adj_r2_whole = utils.adjusted_r2_score(snp_data, reconstructed_full_data, n_whole, p_whole)
-
-# Calculate Pearson Correlation
-pearson_corr_train = utils.compute_pearson_correlation(X_train, reconstructed_data_train)
-pearson_corr_test = utils.compute_pearson_correlation(X_test, reconstructed_data_test)
-pearson_corr_whole = utils.compute_pearson_correlation(snp_data, reconstructed_full_data)
-
-# Save Adjusted R², Pearson Correlation, and RMSE metrics
-utils.save_adjusted_r2_and_pearson_corr(
-    snp_data_loc,
-    adj_r2_train, adj_r2_test, adj_r2_whole,
-    pearson_corr_train, pearson_corr_test, pearson_corr_whole,
-    rmse_train, rmse_test, rmse_whole,
-    hopt=hopt
-)
-
 # Print results
 print("MSE (Train):", mse_train)
 print("MSE (Test):", mse_test)
 print("MSE (Whole):", mse_whole)
 
-print("RMSE (Train):", rmse_train)
-print("RMSE (Test):", rmse_test)
-print("RMSE (Whole):", rmse_whole)
+
 
 print("R² (Train):", r2_train)
 print("R² (Test):", r2_test)
 print("R² (Whole):", r2_whole)
 
-print("Adjusted R² (Train):", adj_r2_train)
-print("Adjusted R² (Test):", adj_r2_test)
-print("Adjusted R² (Whole):", adj_r2_whole)
-
-print("Pearson Correlation (Train):", pearson_corr_train)
-print("Pearson Correlation (Test):", pearson_corr_test)
-print("Pearson Correlation (Whole):", pearson_corr_whole)
 
 print("Cross Validation")
 
