@@ -2,23 +2,16 @@ import os
 import subprocess
 
 import keras
-import numpy as np
 import pandas as pd
 import sys
 from matplotlib import pyplot as plt
-from scipy.stats import f, pearsonr
+
 from sklearn import clone
 from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.metrics import r2_score, mean_squared_error, accuracy_score, roc_auc_score, pairwise_distances
-from sklearn.model_selection import KFold
+from sklearn.metrics import  mean_squared_error, accuracy_score, roc_auc_score
 import tensorflow as tf
 import numpy as np
 from sklearn.model_selection import KFold
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from tensorflow.python.keras.models import clone_model
-
-import utils
 
 
 def extract_phenotype(genotype_file):
@@ -301,6 +294,23 @@ def evaluate_r2(original, reconstructed):
 
 
 
+def compute_rmse(y_true, y_pred):
+    """
+    Compute Root Mean Squared Error (RMSE) between true and predicted values.
+
+    Parameters:
+        y_true (np.ndarray or pd.DataFrame): True values.
+        y_pred (np.ndarray or pd.DataFrame): Predicted values.
+
+    Returns:
+        float: RMSE score.
+    """
+    if isinstance(y_true, pd.DataFrame):
+        y_true = y_true.values
+    if isinstance(y_pred, pd.DataFrame):
+        y_pred = y_pred.values
+
+    return np.sqrt(mean_squared_error(y_true, y_pred))
 
 def save_model(model, snp_data_loc, override=False):
     """
@@ -381,30 +391,20 @@ def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
         # Calculate Adjusted R-squared
         n_train, p_train = X_train.shape
         n_val, p_val = X_val.shape
-        adj_r2_train = adjusted_r2_score(X_train, reconstructed_data_train, n_train, p_train)
-        adj_r2_val = adjusted_r2_score(X_val, reconstructed_data_val, n_val, p_val)
-
-        # Calculate Pearson Correlation
-        pearson_corr_train = compute_pearson_correlation(X_train, reconstructed_data_train)
-        pearson_corr_val = compute_pearson_correlation(X_val, reconstructed_data_val)
 
         # Append metrics to lists
         mse_train_list.append(mse_train)
         mse_val_list.append(mse_val)
         r2_train_list.append(r2_train)
         r2_val_list.append(r2_val)
-        adj_r2_train_list.append(adj_r2_train)
-        adj_r2_val_list.append(adj_r2_val)
-        pearson_corr_train_list.append(pearson_corr_train)
-        pearson_corr_val_list.append(pearson_corr_val)
+
 
     # Calculate average metrics over all folds
     avg_mse_train = np.mean(mse_train_list)
     avg_mse_val = np.mean(mse_val_list)
     avg_r2_train = np.mean(r2_train_list)
     avg_r2_val = np.mean(r2_val_list)
-    avg_adj_r2_train = np.mean(adj_r2_train_list)
-    avg_adj_r2_val = np.mean(adj_r2_val_list)
+
     avg_pearson_corr_train = np.mean(pearson_corr_train_list)
     avg_pearson_corr_val = np.mean(pearson_corr_val_list)
 
@@ -414,8 +414,7 @@ def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
         avg_mse_val,
         avg_r2_train,
         avg_r2_val,
-        # avg_adj_r2_train,
-        # avg_adj_r2_val,
+
         avg_pearson_corr_train,
         avg_pearson_corr_val,
     )
@@ -436,9 +435,6 @@ def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
         X_tr, X_val = X[tr_idx], X[val_idx]
         y_tr, y_val = y[tr_idx], y[val_idx]
 
-        # ------------------------------------------------------------------
-        # fresh copy of the model with identical hyper-params but *untrained*
-        # ------------------------------------------------------------------
         if isinstance(model, tf.keras.Model):
             fold_model = tf.keras.models.clone_model(model, clone_function=None)
             fold_model.compile(optimizer=tf.keras.optimizers.Adam(),

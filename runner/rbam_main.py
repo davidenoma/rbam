@@ -122,25 +122,15 @@ snp_data_loc = sys.argv[1]
 
 if sys.argv[3] == 'quantitative' or sys.argv[3] == 'cc_com':
     X_train, X_test, snp_data, phenotype, y_train, y_test = load_real_genotype_data(snp_data_loc)
-    # scaler = StandardScaler()
 
-    # X_train = scaler.fit_transform(X_train)
-    # X_test = scaler.transform(X_test)
     hopt = "hopt_cc_com_or_quant"
     directory = f"{os.getcwd()}/model_cc_com_qt"
 else:
     X_train, X_test, snp_data = load_real_genotype_data_case_control(snp_data_loc)
-    # scaler = StandardScaler()
-    #
-    # X_train = scaler.fit_transform(X_train)
-    # X_test = scaler.transform(X_test)
+
     hopt = "hopt"
     directory = f"{os.getcwd()}/model"
-# X_train = snp_data
-#Normalized input data
-# X_train = (X_train - np.mean(X_train, axis=0)) / np.std(X_train, axis=0)
-# X_test = (X_test - np.mean(X_test, axis=0)) / np.std(X_test, axis=0)
-# Objective function for VAE
+
 def objective(params):
     model = create_vae_model(input_dim=X_train.shape[1], **params)
     history = model.fit(X_train, X_train,
@@ -197,6 +187,9 @@ reconstructed_data_train = best_model.predict(X_train)
 reconstructed_data_test = best_model.predict(X_test)
 reconstructed_full_data = best_model.predict(snp_data)
 
+mse_train = utils.compute_rmse(X_train, reconstructed_data_train)**2
+mse_test = utils.compute_rmse(X_test, reconstructed_data_test)**2
+mse_whole = utils.compute_rmse(snp_data, reconstructed_full_data)**2
 
 # Calculate R²
 r2_train = np.mean(utils.evaluate_r2(X_train, reconstructed_data_train))
@@ -215,7 +208,6 @@ print("MSE (Test):", mse_test)
 print("MSE (Whole):", mse_whole)
 
 
-
 print("R² (Train):", r2_train)
 print("R² (Test):", r2_test)
 print("R² (Whole):", r2_whole)
@@ -227,7 +219,6 @@ print("Cross Validation")
 (
     avg_mse_train, avg_mse_test,
     avg_r2_train, avg_r2_test,
-    # avg_adj_r2_train, avg_adj_r2_test,
     avg_pearson_corr_train, avg_pearson_corr_test
 ) = utils.cross_validate_vae(snp_data, best_model)
 
@@ -255,9 +246,3 @@ bim = pd.read_csv(sys.argv[2], sep="\t")
 utils.obtain_snps_and_weights(X_train, feature_importance_decoder, bim, snp_data_loc, "decoder", hopt=hopt)
 utils.obtain_snps_and_weights(X_train, feature_importance_encoder, bim, snp_data_loc, "encoder", hopt=hopt)
 
-# utils.plot_latent_space_clustering(snp_data_loc,best_model, snp_data, method='pca', n_components=2,hopt=hopt)
-
-
-# permutation_scores = utils.permutation_feature_importance(snp_data_loc,snp_data, reconstructed_full_data, best_model, snp_ids=snp_data.columns, n_permutations=10,hopt=hopt)
-
-# rdc_scores = utils.compute_snp_rdc_scores(snp_data_loc, best_model, snp_data, snp_data.columns,hopt=hopt )

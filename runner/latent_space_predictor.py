@@ -21,8 +21,7 @@ print("Num GPUs Available: ", len(physical_devices))
 for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 import utils
-from utils import load_real_genotype_data, cross_validate_classifier, save_classifier_metrics, cross_validate_vae, \
-    save_mse_values, save_r2_scores
+from utils import load_real_genotype_data, cross_validate_classifier, save_classifier_metrics
 def save_mode (model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
     """
     Save a TensorFlow model to a specified location.
@@ -219,7 +218,7 @@ if not best_vae_model:  # Hyperparameter optimization for VAE
                                           batch_size=best_vae_hyperparameters['batch_size'],
                                           validation_split=0.25)
 
-    save_model(best_vae_model, snp_data_loc)
+    utils.save_model(best_vae_model, snp_data_loc)
 # Calculate and save MSE and R2 scores for the VAE
 best_model = best_vae_model
 # Reconstruct input data using the trained VAE
