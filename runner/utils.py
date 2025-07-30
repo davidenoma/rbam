@@ -5,7 +5,6 @@ import keras
 import pandas as pd
 import sys
 from matplotlib import pyplot as plt
-
 from sklearn import clone
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import  mean_squared_error, accuracy_score, roc_auc_score
@@ -347,7 +346,6 @@ def load_model(snp_data_loc):
     Returns:
     - model: The loaded TensorFlow model if it exists, otherwise returns None.
     """
-
 
     directory = f"{os.getcwd()}/model"
     filename = f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}.keras"

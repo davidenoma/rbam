@@ -22,7 +22,7 @@ for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 import utils
 from utils import load_real_genotype_data, cross_validate_classifier, save_classifier_metrics
-def save_mode (model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
+def save_model(model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
     """
     Save a TensorFlow model to a specified location.
 
@@ -127,23 +127,6 @@ class CustomEarlyStopping(tf.keras.callbacks.Callback):
             print(f"\nStopping training early at epoch {epoch + 1} as validation loss has gone below zero.")
             self.model.stop_training = True
 
-
-# Utility to save latent space predictions
-def save_latent_space_predictions(z_mean, snp_data_loc, prefix="latent_space"):
-    """
-    Save latent space predictions to a file.
-
-    Args:
-        z_mean (numpy.ndarray): Latent space predictions.
-        snp_data_loc (str): Path to the input SNP data file.
-        prefix (str): Prefix for the output filename.
-    """
-    output_dir = "model_outputs"
-    os.makedirs(output_dir, exist_ok=True)
-    file_name = os.path.splitext(os.path.basename(snp_data_loc))[0]
-    output_file = os.path.join(output_dir, f"{prefix}_{file_name}.csv")
-    print(f"Saving latent space predictions to: {output_file}")
-    np.savetxt(output_file, z_mean, delimiter=",", fmt="%.6f")
 # Function to create the VAE model
 def create_vae_model(input_dim, num_hidden_layers_encoder, num_hidden_layers_decoder, encoding_dimensions,
                      decoding_dimensions, activation, batch_size, epochs,
@@ -182,7 +165,6 @@ def objective(params):
     # Return the minimum validation loss instead of the training loss
     val_loss = min(history.history['val_loss'])
     return {'loss': val_loss, 'status': STATUS_OK}
-
 
 
 # Define the search space for VAE hyperparameters
@@ -240,7 +222,6 @@ r2_whole = np.mean(utils.evaluate_r2(snp_data, reconstructed_full_data))
 utils.save_r2_scores(snp_data_loc, r2_train, r2_test, r2_whole, hopt=hopt)
 
 
-
 # Print results
 print("MSE (Train):", mse_train)
 print("MSE (Test):", mse_test)
@@ -249,7 +230,6 @@ print("MSE (Whole):", mse_whole)
 print("R² (Train):", r2_train)
 print("R² (Test):", r2_test)
 print("R² (Whole):", r2_whole)
-
 
 print("Cross Validation")
 
@@ -271,12 +251,6 @@ print("Average Testing MSE:", avg_mse_test)
 print("Average Training R^2:", avg_r2_train)
 print("Average Testing R^2:", avg_r2_test)
 
-print("Average Training Pearson Correlation:", avg_pearson_corr_train)
-print("Average Testing Pearson Correlation:", avg_pearson_corr_test)
-
-from sklearn.utils import resample
-
-
 
 # Extract latent vectors
 encoder = best_vae_model.encoder
@@ -285,14 +259,11 @@ print(_,z_mean_full)
 z_mean_train, _ = tf.split(encoder.predict(X_train), num_or_size_splits=2, axis=1)
 z_mean_test, _ = tf.split(encoder.predict(X_test), num_or_size_splits=2, axis=1)
 
-
-
 # Scale latent space
 scaler = StandardScaler().fit(z_mean_train)
 z_mean_train = scaler.transform(z_mean_train)
-z_mean_test  = scaler.transform(z_mean_test)
-# z_mean_full  = scaler.transform(z_mean_full)   # used later in CV
-
+z_mean_test = scaler.transform(z_mean_test)
+z_mean_full = scaler.transform(z_mean_full)  # Will be used later in CV
 
 # Class weights calculation
 class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
@@ -348,7 +319,6 @@ classifier_space = {
 
 
 # Objective function for hyperparameter optimization
-# Objective function for hyperparameter optimization
 def objective_classifier(params, model_type):
     """
     Hyperopt objective:  model is trained on 80 % of the *training*
@@ -388,10 +358,6 @@ def objective_classifier(params, model_type):
         val_loss = 1.0 - accuracy_score(y_val, preds)   # minimise 1-accuracy
 
     return {'loss': val_loss, 'status': STATUS_OK}
-
-# Key Changes
-# 1. For `XGBClassifier`, use `scale_pos_weight`.
-# 2. Ensure `class_weight` is passed only to models that support it (e.g., `LogisticRegression`, `RandomForestClassifier`).
 
 # Usage
 for model_type, space in classifier_space.items():
@@ -444,4 +410,4 @@ for model_type, space in classifier_space.items():
     print(
         f"Cross-Validation Accuracy for {model_type} ({snp_file_name}) - Train: {avg_accuracy_train}, Test: {avg_accuracy_val}")
     print(f"Cross-Validation AUC for {model_type} ({snp_file_name}) - Train: {avg_auc_train}, Test: {avg_auc_val}")
-    # print(f"Cross-Validation R² for {model_type} ({snp_file_name}) - Train: {avg_r2_train}, Test: {avg_r2_val}")
+
