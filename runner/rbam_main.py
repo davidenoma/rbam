@@ -6,12 +6,11 @@ import pandas as pd
 import tensorflow as tf
 from hyperopt import fmin, hp, tpe, space_eval
 from matplotlib import pyplot as plt
-from sklearn.metrics import r2_score
-from sklearn.preprocessing import StandardScaler
+import rbam_shap_analysis
 
 import utils
-from utils import save_summary, load_real_genotype_data_case_control, load_real_genotype_data, adjusted_r2_score, \
-    compute_pearson_correlation
+from utils import save_summary, load_real_genotype_data_case_control, load_real_genotype_data
+
 
 # Set up environment
 # Find CUDA installation path using `whereis cuda` command
@@ -240,9 +239,52 @@ feature_importance_decoder = utils.extract_decoder_reconstruction_weights(best_m
 feature_importance_encoder = utils.extract_encoder_weights(best_model)
 
 # Load BIM file
-bim = pd.read_csv(sys.argv[2], sep="\t")
-
+# bim = pd.read_csv(sys.argv[2], sep="\t")
+#
 # Obtain SNPs and weights for both decoder and encoder
-utils.obtain_snps_and_weights(X_train, feature_importance_decoder, bim, snp_data_loc, "decoder", hopt=hopt)
-utils.obtain_snps_and_weights(X_train, feature_importance_encoder, bim, snp_data_loc, "encoder", hopt=hopt)
+# utils.obtain_snps_and_weights(X_train, feature_importance_decoder, bim, snp_data_loc, "decoder", hopt=hopt)
+# utils.obtain_snps_and_weights(X_train, feature_importance_encoder, bim, snp_data_loc, "encoder", hopt=hopt)
+
+# Add this to your main execution section after VAE training:
+
+print("Starting SHAP analysis for VAE interpretability...")
+
+# Create output directory for SHAP results
+shap_output_dir = f"shap_analysis/{os.path.splitext(os.path.basename(snp_data_loc))[0]}"
+os.makedirs(shap_output_dir, exist_ok=True)
+
+try:
+    # Perform SHAP analysis
+    shap_results = rbam_shap_analysis.explain_vae_with_shap_robust(best_model, X_train, sample_size=100)
+
+    # Create SHAP visualizations
+    rbam_shap_analysis.plot_shap_analysis_robust(shap_results, save_path=shap_output_dir)
+
+    # Analyze individual latent dimensions
+    dimension_analysis = rbam_shap_analysis.analyze_feature_importance_alternative(best_model, X_train)
+
+    # Comprehensive latent space analysis
+    if 'y_train' in locals():
+        latent_analysis = rbam_shap_analysis.analyze_latent_space_interpretability(
+            best_model, X_train, y_train, save_path=shap_output_dir
+        )
+    else:
+        latent_analysis = rbam_shap_analysis.analyze_latent_space_interpretability(
+            best_model, X_train, save_path=shap_output_dir
+        )
+
+    # Save SHAP values for further analysis
+    np.savez(
+        os.path.join(shap_output_dir, "shap_values.npz"),
+        encoder_shap_values=shap_results['encoder_shap_values'],
+        reconstruction_shap_values=shap_results['reconstruction_shap_values'],
+        explain_data=shap_results['explain_data']
+    )
+
+    print(f"SHAP analysis completed. Results saved to: {shap_output_dir}")
+
+except Exception as e:
+    print(f"SHAP analysis failed: {e}")
+    print("Continuing with standard analysis...")
+
 
