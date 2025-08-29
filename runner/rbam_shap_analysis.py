@@ -9,109 +9,276 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
 
-def explain_vae_with_shap_robust(vae_model, X_data, sample_size=100, max_evals=50):
+def analyze_latent_space_interpretability(vae_model, X_data, y_data=None, save_path=None):
     """
-    Robust SHAP analysis for VAE with proper error handling.
-
-    Args:
-        vae_model: Trained VAE model
-        X_data: Input data for explanation (numpy array)
-        sample_size: Number of background samples for SHAP
-        max_evals: Maximum evaluations for SHAP
-
-    Returns:
-        dict: SHAP analysis results or None if failed
+    Analyze latent space structure and interpretability.
     """
+    print("Analyzing latent space structure...")
+
     try:
-        print("Initializing robust SHAP analysis for VAE...")
-
-        # Ensure data is numpy array and properly formatted
+        # Handle DataFrame input
         if isinstance(X_data, pd.DataFrame):
-            X_data = X_data.values
-        X_data = np.array(X_data, dtype=np.float32)
+            X_data_np = X_data.values
+        else:
+            X_data_np = np.array(X_data)
 
-        print(f"Data shape: {X_data.shape}")
-        print(f"Data type: {X_data.dtype}")
+        # Sample data for analysis
+        sample_size = min(1000, X_data_np.shape[0])
+        sample_indices = np.random.choice(X_data_np.shape[0], sample_size, replace=False)
+        sample_data = X_data_np[sample_indices]
 
-        # Create background dataset with proper indexing
-        np.random.seed(42)  # For reproducibility
-        n_samples = X_data.shape[0]
-        background_size = min(sample_size, n_samples)
-        explain_size = min(20, n_samples)  # Reduced for stability
+        # Get latent representations
+        encoded = vae_model.encoder.predict(sample_data, verbose=0)
+        z_mean, z_log_var = tf.split(encoded, num_or_size_splits=2, axis=1)
+        z_mean_np = z_mean.numpy()
+        z_log_var_np = z_log_var.numpy()
 
-        # Use proper sampling
-        background_indices = np.random.choice(n_samples, size=background_size, replace=False)
-        background_data = X_data[background_indices].copy()
+        # Calculate latent space statistics
+        latent_dim = z_mean_np.shape[1]
 
-        explain_indices = np.random.choice(n_samples, size=explain_size, replace=False)
-        explain_data = X_data[explain_indices].copy()
+        # 1. Latent dimension variance analysis
+        latent_variances = np.var(z_mean_np, axis=0)
+        latent_means = np.mean(z_mean_np, axis=0)
 
-        print(f"Background data shape: {background_data.shape}")
-        print(f"Explain data shape: {explain_data.shape}")
+        # 2. PCA on latent space
+        if latent_dim > 2:
+            pca = PCA(n_components=min(10, latent_dim))
+            z_pca = pca.fit_transform(z_mean_np)
+            explained_variance_ratio = pca.explained_variance_ratio_
+        else:
+            z_pca = z_mean_np
+            explained_variance_ratio = np.array([1.0, 0.0])
 
-        # Create wrapper functions for SHAP analysis
-        def encoder_mean_output(x):
-            """Wrapper to get encoder mean output"""
+        # 3. Create visualizations
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+
+        # Plot 1: Latent dimension variances
+        axes[0, 0].bar(range(latent_dim), latent_variances)
+        axes[0, 0].set_xlabel('Latent Dimension')
+        axes[0, 0].set_ylabel('Variance')
+        axes[0, 0].set_title('Variance per Latent Dimension')
+        axes[0, 0].grid(True, alpha=0.3)
+
+        # Plot 2: Latent dimension means
+        axes[0, 1].bar(range(latent_dim), latent_means)
+        axes[0, 1].set_xlabel('Latent Dimension')
+        axes[0, 1].set_ylabel('Mean')
+        axes[0, 1].set_title('Mean per Latent Dimension')
+        axes[0, 1].grid(True, alpha=0.3)
+
+        # Plot 3: PCA explained variance
+        if len(explained_variance_ratio) > 1:
+            axes[1, 0].bar(range(len(explained_variance_ratio)), explained_variance_ratio)
+            axes[1, 0].set_xlabel('PCA Component')
+            axes[1, 0].set_ylabel('Explained Variance Ratio')
+            axes[1, 0].set_title('PCA Explained Variance in Latent Space')
+            axes[1, 0].grid(True, alpha=0.3)
+
+        # Plot 4: 2D latent space visualization (colored by phenotype if available)
+        if y_data is not None:
+            y_sample = y_data[sample_indices] if len(y_data) > sample_size else y_data
+            scatter = axes[1, 1].scatter(z_pca[:, 0], z_pca[:, 1], c=y_sample,
+                                         cmap='viridis', alpha=0.6)
+            plt.colorbar(scatter, ax=axes[1, 1])
+            axes[1, 1].set_title('Latent Space (colored by phenotype)')
+        else:
+            axes[1, 1].scatter(z_pca[:, 0], z_pca[:, 1], alpha=0.6)
+            axes[1, 1].set_title('Latent Space Distribution')
+
+        axes[1, 1].set_xlabel('First Component')
+        axes[1, 1].set_ylabel('Second Component')
+        axes[1, 1].grid(True, alpha=0.3)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(os.path.join(save_path, "latent_space_analysis.png"),
+                        dpi=300, bbox_inches='tight')
+        plt.show()
+
+        # 4. Analyze latent space clustering if phenotype data available
+        clustering_results = None
+        if y_data is not None:
+            from sklearn.metrics import silhouette_score
             try:
-                # Ensure input is properly formatted
-                x = tf.cast(x, tf.float32)
-                encoded = vae_model.encoder(x, training=False)
-                z_mean, _ = tf.split(encoded, num_or_size_splits=2, axis=1)
-                return z_mean
+                y_sample = y_data[sample_indices] if len(y_data) > sample_size else y_data
+
+                # Calculate silhouette score for phenotype separation
+                if len(np.unique(y_sample)) > 1:
+                    sil_score = silhouette_score(z_mean_np, y_sample)
+                    clustering_results = {
+                        'silhouette_score': sil_score,
+                        'phenotype_separation': True
+                    }
+                    print(f"Latent space silhouette score for phenotype separation: {sil_score:.3f}")
             except Exception as e:
-                print(f"Error in encoder_mean_output: {e}")
-                raise
-
-        def reconstruction_output(x):
-            """Wrapper to get full reconstruction"""
-            try:
-                x = tf.cast(x, tf.float32)
-                return vae_model(x, training=False)
-            except Exception as e:
-                print(f"Error in reconstruction_output: {e}")
-                raise
-
-        # Test the wrapper functions first
-        print("Testing wrapper functions...")
-        test_output = encoder_mean_output(background_data[:2])
-        print(f"Encoder test output shape: {test_output.shape}")
-
-        # SHAP analysis for encoder (latent space construction)
-        print("Analyzing encoder (latent space construction)...")
-        encoder_explainer = shap.DeepExplainer(encoder_mean_output, background_data)
-        encoder_shap_values = encoder_explainer.shap_values(explain_data, check_additivity=False)
-
-        print(f"Encoder SHAP values shape: {np.array(encoder_shap_values).shape}")
+                print(f"Could not compute clustering metrics: {e}")
 
         return {
-            'encoder_shap_values': encoder_shap_values,
-            'explain_data': explain_data,
-            'background_data': background_data,
-            'encoder_explainer': encoder_explainer,
+            'latent_dim': latent_dim,
+            'latent_variances': latent_variances,
+            'latent_means': latent_means,
+            'pca_explained_variance': explained_variance_ratio,
+            'total_variance_explained': np.sum(explained_variance_ratio[:2]),
+            'clustering_results': clustering_results,
+            'z_mean_sample': z_mean_np,
+            'z_pca': z_pca,
             'success': True
         }
 
     except Exception as e:
+        print(f"Latent space analysis failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'success': False, 'error': str(e)}
+def explain_vae_with_shap_robust(vae_model, X_data, snp_names=None, sample_size=100, max_evals=50):
+    """
+    Robust SHAP analysis for VAE with proper TF2 compatibility.
+    """
+    try:
+        print("Initializing robust SHAP analysis for VAE...")
+
+        # Ensure data is properly formatted
+        if isinstance(X_data, pd.DataFrame):
+            if snp_names is None:
+                snp_names = X_data.columns.tolist()
+            X_data = X_data.values
+        X_data = np.array(X_data, dtype=np.float32)
+
+        print(f"Original data shape: {X_data.shape}")
+
+        # Sample individuals instead of reducing features
+        np.random.seed(42)
+        n_samples = X_data.shape[0]
+        sample_indices = np.random.choice(n_samples, size=min(100, n_samples), replace=False)
+        X_sampled = X_data[sample_indices].copy()
+
+        print(f"Sampled data shape: {X_sampled.shape}")
+
+        # Create smaller background and explain sets from sampled data
+        background_size = min(30, len(X_sampled))
+        explain_size = min(5, len(X_sampled))
+
+        # Sample from the already sampled data
+        background_indices = np.random.choice(len(X_sampled), size=background_size, replace=False)
+        background_data = X_sampled[background_indices].copy()
+
+        explain_indices = np.random.choice(len(X_sampled), size=explain_size, replace=False)
+        explain_data = X_sampled[explain_indices].copy()
+
+        print(f"Background data shape: {background_data.shape}")
+        print(f"Explain data shape: {explain_data.shape}")
+
+        # Initialize the encoder by calling it once with sample data
+        try:
+            print("Initializing encoder model...")
+            # Call the encoder once to build it
+            _ = vae_model.encoder(background_data[:1])
+
+            # Now create the SHAP-compatible model
+            encoder_output = vae_model.encoder.output
+            z_mean, _ = tf.split(encoder_output, num_or_size_splits=2, axis=1)
+
+            # Create a new model for SHAP using the same input as the encoder
+            shap_model = tf.keras.Model(inputs=vae_model.encoder.input, outputs=z_mean)
+
+            print("Testing SHAP-compatible model...")
+            test_output = shap_model(background_data[:1])
+            print(f"SHAP model test output shape: {test_output.shape}")
+
+            # SHAP analysis with the Keras model
+            print("Creating SHAP explainer with Keras model...")
+            explainer = shap.DeepExplainer(shap_model, background_data)
+
+            print("Computing SHAP values...")
+            shap_values = explainer.shap_values(explain_data, check_additivity=False)
+
+            if shap_values is None:
+                return {'success': False, 'error': 'SHAP values computation returned None'}
+
+            print(f"SHAP values computed successfully")
+
+            return {
+                'encoder_shap_values': shap_values,
+                'explain_data': explain_data,
+                'background_data': background_data,
+                'explainer': explainer,
+                'snp_names': snp_names,
+                'sampled_indices': sample_indices,
+                'success': True
+            }
+
+        except Exception as shap_error:
+            print(f"SHAP with Keras model failed: {shap_error}")
+
+            # Fallback: Use Permutation explainer with proper max_evals
+            print("Trying Permutation explainer as fallback...")
+
+            def model_predict(x):
+                # Ensure the encoder is called properly
+                x = tf.constant(x, dtype=tf.float32)
+                encoded = vae_model.encoder(x, training=False)
+                z_mean, _ = tf.split(encoded, num_or_size_splits=2, axis=1)
+                return z_mean.numpy()
+
+            # Test the model_predict function
+            print("Testing model_predict function...")
+            test_pred = model_predict(background_data[:1])
+            print(f"Model predict test output shape: {test_pred.shape}")
+
+            # For large feature sets, use a more efficient approach
+            # Limit max_evals to a reasonable number
+            max_features_for_permutation = 1000
+            safe_max_evals = max_features_for_permutation * 2 + 1
+
+            if X_sampled.shape[1] > max_features_for_permutation:
+                print(f"Too many features ({X_sampled.shape[1]}) for Permutation explainer.")
+                print("Using alternative gradient-based approach...")
+
+                # Use gradient-based method instead
+                return analyze_feature_importance_alternative(vae_model, X_sampled, snp_names)
+
+            print(f"Using max_evals={safe_max_evals} for {X_sampled.shape[1]} features")
+
+            # Use permutation explainer with proper settings
+            explainer = shap.explainers.Permutation(
+                model_predict,
+                background_data,
+                max_evals=safe_max_evals
+            )
+
+            print("Computing SHAP values with Permutation explainer...")
+            shap_values = explainer(explain_data)
+
+            return {
+                'encoder_shap_values': shap_values.values,
+                'explain_data': explain_data,
+                'background_data': background_data,
+                'explainer': explainer,
+                'snp_names': snp_names,
+                'sampled_indices': sample_indices,
+                'success': True
+            }
+
+    except Exception as e:
         print(f"SHAP analysis failed: {e}")
-        print("Attempting alternative analysis...")
+        import traceback
+        traceback.print_exc()
         return {'success': False, 'error': str(e)}
 
-
-def analyze_feature_importance_alternative(vae_model, X_data, num_features=20):
+def analyze_feature_importance_alternative(vae_model, X_data, snp_names=None, num_features=20):
     """
     Alternative feature importance analysis using gradient-based methods.
-
-    Args:
-        vae_model: Trained VAE model
-        X_data: Input data
-        num_features: Number of top features to analyze
-
-    Returns:
-        dict: Feature importance analysis results
     """
     print("Performing gradient-based feature importance analysis...")
 
     try:
+        # Handle DataFrame input
+        if isinstance(X_data, pd.DataFrame):
+            if snp_names is None:
+                snp_names = X_data.columns.tolist()
+            X_data = X_data.values
+
         # Convert to tensor if needed
         if not isinstance(X_data, tf.Tensor):
             X_data = tf.constant(X_data, dtype=tf.float32)
@@ -136,14 +303,20 @@ def analyze_feature_importance_alternative(vae_model, X_data, num_features=20):
             feature_importance = tf.reduce_mean(tf.abs(gradients), axis=0)
 
             # Get top features
-            top_indices = tf.nn.top_k(feature_importance, k=min(num_features, len(feature_importance))).indices
+            top_k = min(num_features, len(feature_importance))
+            top_indices = tf.nn.top_k(feature_importance, k=top_k).indices
             top_importance = tf.gather(feature_importance, top_indices)
 
+            # Convert to numpy for easier handling
+            feature_importance_np = feature_importance.numpy()
+            top_indices_np = top_indices.numpy()
+            top_importance_np = top_importance.numpy()
+
             return {
-                'feature_importance': feature_importance.numpy(),
-                'top_indices': top_indices.numpy(),
-                'top_importance': top_importance.numpy(),
-                'gradients': gradients.numpy(),
+                'feature_importance': feature_importance_np,
+                'top_indices': top_indices_np,
+                'top_importance': top_importance_np,
+                'snp_names': snp_names,
                 'success': True
             }
         else:
@@ -155,14 +328,9 @@ def analyze_feature_importance_alternative(vae_model, X_data, num_features=20):
         return {'success': False, 'error': str(e)}
 
 
-def plot_feature_importance(importance_results, feature_names=None, save_path=None):
+def plot_feature_importance(importance_results, save_path=None):
     """
-    Plot feature importance results.
-
-    Args:
-        importance_results: Results from feature importance analysis
-        feature_names: Optional feature names
-        save_path: Path to save plots
+    Plot feature importance results using SNP names.
     """
     if not importance_results.get('success', False):
         print("No successful importance results to plot")
@@ -173,210 +341,77 @@ def plot_feature_importance(importance_results, feature_names=None, save_path=No
     if save_path:
         os.makedirs(save_path, exist_ok=True)
 
-    # Plot 1: Top feature importance
+    # Get data
     top_indices = importance_results['top_indices']
     top_importance = importance_results['top_importance']
+    snp_names = importance_results.get('snp_names', None)
 
-    if feature_names is None:
-        feature_names = [f"Feature_{i}" for i in range(len(importance_results['feature_importance']))]
+    # Create feature names
+    if snp_names is not None and len(snp_names) > max(top_indices):
+        top_features = [snp_names[i] for i in top_indices]
+    else:
+        top_features = [f"SNP_{i}" for i in top_indices]
 
-    top_features = [feature_names[i] if i < len(feature_names) else f"Feature_{i}"
-                    for i in top_indices]
-
+    # Plot 1: Top feature importance
     plt.figure(figsize=(12, 8))
     plt.barh(range(len(top_importance)), top_importance)
     plt.yticks(range(len(top_importance)), top_features)
     plt.xlabel('Feature Importance (Mean Absolute Gradient)')
-    plt.title(f'Top {len(top_importance)} Features by Importance for Latent Space Construction')
+    plt.title(f'Top {len(top_importance)} SNPs by Importance for Latent Space Construction')
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(os.path.join(save_path, "feature_importance_gradient.png"),
+        plt.savefig(os.path.join(save_path, "snp_importance_gradient.png"),
                     dpi=300, bbox_inches='tight')
     plt.show()
 
     # Plot 2: Feature importance distribution
     plt.figure(figsize=(10, 6))
     plt.hist(importance_results['feature_importance'], bins=50, alpha=0.7)
-    plt.xlabel('Feature Importance')
+    plt.xlabel('SNP Importance')
     plt.ylabel('Frequency')
-    plt.title('Distribution of Feature Importance Scores')
+    plt.title('Distribution of SNP Importance Scores')
     plt.grid(True, alpha=0.3)
 
     if save_path:
-        plt.savefig(os.path.join(save_path, "importance_distribution.png"),
+        plt.savefig(os.path.join(save_path, "snp_importance_distribution.png"),
                     dpi=300, bbox_inches='tight')
     plt.show()
 
 
-def analyze_latent_space_interpretability(vae_model, X_data, y_data=None, save_path=None):
+def analyze_reconstruction_patterns(vae_model, X_data, snp_names=None, save_path=None):
     """
-    Comprehensive latent space interpretability analysis.
-
-    Args:
-        vae_model: Trained VAE model
-        X_data: Input data
-        y_data: Optional phenotype data for supervised analysis
-        save_path: Path to save results
-
-    Returns:
-        dict: Latent space analysis results
-    """
-    print("Starting comprehensive latent space interpretability analysis...")
-
-    try:
-        # Extract latent representations
-        encoded = vae_model.encoder.predict(X_data, verbose=0)
-        z_mean, z_log_var = tf.split(encoded, num_or_size_splits=2, axis=1)
-        z_mean = z_mean.numpy()
-        z_log_var = z_log_var.numpy()
-
-        latent_dim = z_mean.shape[1]
-        print(f"Latent space dimensionality: {latent_dim}")
-
-        # 1. Principal Component Analysis of latent space
-        print("Performing PCA on latent space...")
-        n_components = min(10, latent_dim)
-        pca = PCA(n_components=n_components)
-        z_pca = pca.fit_transform(z_mean)
-
-        # 2. Calculate latent dimension statistics
-        latent_variances = np.var(z_mean, axis=0)
-        latent_means = np.mean(z_mean, axis=0)
-        latent_correlations = np.corrcoef(z_mean.T)
-
-        # 3. Create visualizations
-        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-
-        # PCA explained variance
-        axes[0, 0].plot(np.cumsum(pca.explained_variance_ratio_))
-        axes[0, 0].set_xlabel('Principal Component')
-        axes[0, 0].set_ylabel('Cumulative Explained Variance')
-        axes[0, 0].set_title('PCA of Latent Space')
-        axes[0, 0].grid(True, alpha=0.3)
-
-        # Latent space visualization colored by phenotype
-        if y_data is not None:
-            scatter = axes[0, 1].scatter(z_pca[:, 0], z_pca[:, 1], c=y_data, cmap='viridis', alpha=0.6)
-            axes[0, 1].set_xlabel('First Principal Component')
-            axes[0, 1].set_ylabel('Second Principal Component')
-            axes[0, 1].set_title('Latent Space Colored by Phenotype')
-            plt.colorbar(scatter, ax=axes[0, 1])
-        else:
-            axes[0, 1].scatter(z_pca[:, 0], z_pca[:, 1], alpha=0.6)
-            axes[0, 1].set_xlabel('First Principal Component')
-            axes[0, 1].set_ylabel('Second Principal Component')
-            axes[0, 1].set_title('Latent Space (First 2 PCs)')
-
-        # Latent dimension variances
-        top_var_dims = min(20, len(latent_variances))
-        axes[1, 0].bar(range(top_var_dims), latent_variances[:top_var_dims])
-        axes[1, 0].set_xlabel('Latent Dimension')
-        axes[1, 0].set_ylabel('Variance')
-        axes[1, 0].set_title(f'Variance per Latent Dimension (Top {top_var_dims})')
-
-        # Correlation heatmap
-        correlation_subset = latent_correlations[:min(20, latent_dim), :min(20, latent_dim)]
-        im = axes[1, 1].imshow(correlation_subset, cmap='coolwarm', vmin=-1, vmax=1)
-        axes[1, 1].set_title('Latent Dimension Correlations')
-        axes[1, 1].set_xlabel('Latent Dimension')
-        axes[1, 1].set_ylabel('Latent Dimension')
-        plt.colorbar(im, ax=axes[1, 1])
-
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(os.path.join(save_path, "latent_space_analysis.png"),
-                       dpi=300, bbox_inches='tight')
-        plt.show()
-
-        # 4. Analyze most informative latent dimensions
-        print("Analyzing most informative latent dimensions...")
-
-        # Sort dimensions by variance
-        var_sorted_indices = np.argsort(latent_variances)[::-1]
-
-        # If we have phenotype data, analyze separation
-        separation_scores = None
-        if y_data is not None:
-            separation_scores = []
-            for dim in range(latent_dim):
-                # Calculate separation between classes in each dimension
-                class_0_values = z_mean[y_data == 0, dim]
-                class_1_values = z_mean[y_data == 1, dim]
-
-                if len(class_0_values) > 0 and len(class_1_values) > 0:
-                    # Calculate mean difference normalized by pooled std
-                    mean_diff = abs(np.mean(class_0_values) - np.mean(class_1_values))
-                    pooled_std = np.sqrt((np.var(class_0_values) + np.var(class_1_values)) / 2)
-                    separation = mean_diff / (pooled_std + 1e-8)
-                else:
-                    separation = 0.0
-
-                separation_scores.append(separation)
-
-            separation_scores = np.array(separation_scores)
-            sep_sorted_indices = np.argsort(separation_scores)[::-1]
-
-            # Plot top separating dimensions
-            plt.figure(figsize=(15, 5))
-            for i, dim_idx in enumerate(sep_sorted_indices[:5]):
-                plt.subplot(1, 5, i+1)
-                plt.hist(z_mean[y_data == 0, dim_idx], alpha=0.7, label='Class 0', bins=30)
-                plt.hist(z_mean[y_data == 1, dim_idx], alpha=0.7, label='Class 1', bins=30)
-                plt.xlabel(f'Latent Dim {dim_idx}')
-                plt.ylabel('Frequency')
-                plt.title(f'Separation Score: {separation_scores[dim_idx]:.2f}')
-                plt.legend()
-
-            plt.suptitle('Top 5 Most Separating Latent Dimensions')
-            plt.tight_layout()
-            if save_path:
-                plt.savefig(os.path.join(save_path, "latent_separation_analysis.png"),
-                           dpi=300, bbox_inches='tight')
-            plt.show()
-
-        return {
-            'pca': pca,
-            'z_pca': z_pca,
-            'z_mean': z_mean,
-            'z_log_var': z_log_var,
-            'latent_variances': latent_variances,
-            'latent_means': latent_means,
-            'latent_correlations': latent_correlations,
-            'var_sorted_indices': var_sorted_indices,
-            'separation_scores': separation_scores,
-            'success': True
-        }
-
-    except Exception as e:
-        print(f"Latent space analysis failed: {e}")
-        return {'success': False, 'error': str(e)}
-
-
-def analyze_reconstruction_patterns(vae_model, X_data, save_path=None):
-    """
-    Analyze reconstruction patterns to understand what the VAE learns.
-
-    Args:
-        vae_model: Trained VAE model
-        X_data: Input data
-        save_path: Path to save plots
-
-    Returns:
-        dict: Reconstruction analysis results
+    Analyze reconstruction patterns using proper data handling.
     """
     print("Analyzing reconstruction patterns...")
 
     try:
+        # Handle DataFrame input
+        if isinstance(X_data, pd.DataFrame):
+            if snp_names is None:
+                snp_names = X_data.columns.tolist()
+            X_data_np = X_data.values
+        else:
+            X_data_np = np.array(X_data)
+
         # Get reconstructions
-        sample_size = min(1000, X_data.shape[0])
-        sample_indices = np.random.choice(X_data.shape[0], sample_size, replace=False)
-        sample_data = X_data[sample_indices]
+        sample_size = min(1000, X_data_np.shape[0])
+        sample_indices = np.random.choice(X_data_np.shape[0], sample_size, replace=False)
+        sample_data = X_data_np[sample_indices]
 
         reconstructions = vae_model.predict(sample_data, verbose=0)
 
         # Calculate reconstruction errors per feature
         reconstruction_errors = np.mean((sample_data - reconstructions) ** 2, axis=0)
+
+        # Get top error indices
+        top_error_indices = np.argsort(reconstruction_errors)[-20:]
+
+        # Create SNP names for top errors
+        if snp_names is not None and len(snp_names) >= len(reconstruction_errors):
+            top_error_snps = [snp_names[i] for i in top_error_indices]
+        else:
+            top_error_snps = [f"SNP_{i}" for i in top_error_indices]
 
         # Plot reconstruction error distribution
         plt.figure(figsize=(12, 5))
@@ -385,102 +420,88 @@ def analyze_reconstruction_patterns(vae_model, X_data, save_path=None):
         plt.hist(reconstruction_errors, bins=50, alpha=0.7)
         plt.xlabel('Mean Squared Error')
         plt.ylabel('Frequency')
-        plt.title('Distribution of Feature Reconstruction Errors')
+        plt.title('Distribution of SNP Reconstruction Errors')
         plt.grid(True, alpha=0.3)
 
         plt.subplot(1, 2, 2)
-        top_error_indices = np.argsort(reconstruction_errors)[-20:]
         plt.barh(range(20), reconstruction_errors[top_error_indices])
-        plt.yticks(range(20), [f"Feature_{i}" for i in top_error_indices])
+        plt.yticks(range(20), top_error_snps, fontsize=8)
         plt.xlabel('Reconstruction Error')
-        plt.title('Top 20 Features with Highest Reconstruction Error')
+        plt.title('Top 20 SNPs with Highest Reconstruction Error')
 
         plt.tight_layout()
         if save_path:
-            plt.savefig(os.path.join(save_path, "reconstruction_analysis.png"),
-                       dpi=300, bbox_inches='tight')
+            plt.savefig(os.path.join(save_path, "snp_reconstruction_analysis.png"),
+                        dpi=300, bbox_inches='tight')
         plt.show()
 
         return {
             'reconstruction_errors': reconstruction_errors,
-            'high_error_features': top_error_indices,
+            'high_error_indices': top_error_indices,
+            'high_error_snps': top_error_snps,
             'mean_reconstruction_error': np.mean(reconstruction_errors),
+            'snp_names': snp_names,
             'success': True
         }
 
     except Exception as e:
         print(f"Reconstruction analysis failed: {e}")
+        import traceback
+        traceback.print_exc()
         return {'success': False, 'error': str(e)}
 
 
 def plot_shap_analysis_robust(shap_results, save_path=None):
     """
-    Robust SHAP plotting with proper error handling.
+    Robust SHAP plotting with SNP names.
     """
     try:
         if not shap_results.get('success', False):
+            print("No successful SHAP results to plot")
             return
 
         print("Creating SHAP visualization plots...")
 
         encoder_shap_values = shap_results['encoder_shap_values']
         explain_data = shap_results['explain_data']
+        snp_names = shap_results.get('snp_names', None)
 
         # Handle different SHAP value formats
         if isinstance(encoder_shap_values, list):
-            # Multiple outputs (multiple latent dimensions)
             shap_values_to_plot = encoder_shap_values[0] if len(encoder_shap_values) > 0 else encoder_shap_values
         else:
             shap_values_to_plot = encoder_shap_values
 
-        # Plot 1: Summary plot
-        plt.figure(figsize=(12, 8))
-        try:
-            shap.summary_plot(
-                shap_values_to_plot,
-                explain_data,
-                show=False,
-                max_display=20
-            )
-            plt.title("SHAP Summary: Feature Importance for Latent Space Construction")
-            if save_path:
-                plt.savefig(os.path.join(save_path, "shap_summary_robust.png"),
-                           dpi=300, bbox_inches='tight')
-            plt.show()
-        except Exception as e:
-            print(f"Could not create summary plot: {e}")
-            plt.close()
-
-        # Plot 2: Feature importance bar plot
+        # Plot feature importance bar plot with SNP names
         if len(shap_values_to_plot.shape) >= 2:
             mean_importance = np.mean(np.abs(shap_values_to_plot), axis=0)
             top_indices = np.argsort(mean_importance)[-20:]
 
+            # Create SNP names for top features
+            if snp_names is not None and len(snp_names) >= len(mean_importance):
+                top_snps = [snp_names[i] for i in top_indices]
+            else:
+                top_snps = [f"SNP_{i}" for i in top_indices]
+
             plt.figure(figsize=(10, 8))
             plt.barh(range(len(top_indices)), mean_importance[top_indices])
-            plt.yticks(range(len(top_indices)), [f"Feature_{i}" for i in top_indices])
+            plt.yticks(range(len(top_indices)), top_snps, fontsize=8)
             plt.xlabel('Mean |SHAP Value|')
-            plt.title('Top 20 Features by SHAP Importance')
+            plt.title('Top 20 SNPs by SHAP Importance')
             plt.tight_layout()
 
             if save_path:
-                plt.savefig(os.path.join(save_path, "shap_feature_importance_robust.png"),
-                           dpi=300, bbox_inches='tight')
+                plt.savefig(os.path.join(save_path, "shap_snp_importance.png"),
+                            dpi=300, bbox_inches='tight')
             plt.show()
 
     except Exception as e:
         print(f"Error in SHAP plotting: {e}")
 
 
-def comprehensive_vae_analysis(vae_model, X_data, y_data=None, save_path=None):
+def comprehensive_vae_analysis(vae_model, X_data, y_data=None, snp_names=None, save_path=None):
     """
-    Comprehensive VAE analysis combining multiple interpretability methods.
-
-    Args:
-        vae_model: Trained VAE model
-        X_data: Input data
-        y_data: Optional labels for supervised analysis
-        save_path: Path to save results
+    Comprehensive VAE analysis with SNP name support.
     """
     print("Starting comprehensive VAE interpretability analysis...")
 
@@ -489,22 +510,24 @@ def comprehensive_vae_analysis(vae_model, X_data, y_data=None, save_path=None):
 
     results = {}
 
+    # Extract SNP names if X_data is DataFrame
+    if isinstance(X_data, pd.DataFrame) and snp_names is None:
+        snp_names = X_data.columns.tolist()
+
     # 1. Try SHAP analysis first
     print("\n=== SHAP Analysis ===")
-    shap_results = explain_vae_with_shap_robust(vae_model, X_data, sample_size=50)
+    shap_results = explain_vae_with_shap_robust(vae_model, X_data, snp_names=snp_names, sample_size=50)
 
     if shap_results.get('success', False):
         print("SHAP analysis successful!")
         results['shap'] = shap_results
-
-        # Plot SHAP results
         plot_shap_analysis_robust(shap_results, save_path=save_path)
     else:
         print("SHAP analysis failed, using alternative methods...")
 
     # 2. Gradient-based feature importance
     print("\n=== Gradient-based Feature Importance ===")
-    importance_results = analyze_feature_importance_alternative(vae_model, X_data)
+    importance_results = analyze_feature_importance_alternative(vae_model, X_data, snp_names=snp_names)
 
     if importance_results.get('success', False):
         print("Gradient analysis successful!")
@@ -518,52 +541,37 @@ def comprehensive_vae_analysis(vae_model, X_data, y_data=None, save_path=None):
 
     # 4. Reconstruction analysis
     print("\n=== Reconstruction Quality Analysis ===")
-    reconstruction_results = analyze_reconstruction_patterns(vae_model, X_data, save_path)
+    reconstruction_results = analyze_reconstruction_patterns(vae_model, X_data, snp_names=snp_names,
+                                                             save_path=save_path)
     results['reconstruction'] = reconstruction_results
 
     return results
 
 
+# Keep all other functions the same, but update the main analysis function:
 def run_vae_interpretability_analysis(vae_model, X_train, y_train, snp_data_loc):
     """
-    Main function to run comprehensive VAE interpretability analysis.
-
-    Args:
-        vae_model: Trained VAE model
-        X_train: Training data
-        y_train: Training labels
-        snp_data_loc: Path to SNP data file
-
-    Returns:
-        dict: Analysis results
+    Main function to run comprehensive VAE interpretability analysis with SNP names.
     """
-    print("="*60)
+    print("=" * 60)
     print("STARTING VAE INTERPRETABILITY ANALYSIS")
-    print("="*60)
+    print("=" * 60)
 
     # Create output directory
     analysis_output_dir = f"vae_analysis/{os.path.splitext(os.path.basename(snp_data_loc))[0]}"
     os.makedirs(analysis_output_dir, exist_ok=True)
 
     try:
+        # Extract SNP names if X_train is DataFrame
+        snp_names = None
+        if isinstance(X_train, pd.DataFrame):
+            snp_names = X_train.columns.tolist()
+            print(f"Found {len(snp_names)} SNP names")
+
         # Run comprehensive analysis
         results = comprehensive_vae_analysis(
-            vae_model, X_train, y_train, save_path=analysis_output_dir
+            vae_model, X_train, y_train, snp_names=snp_names, save_path=analysis_output_dir
         )
-
-        # Save results
-        results_file = os.path.join(analysis_output_dir, "analysis_results.npz")
-
-        # Prepare data for saving (only numpy arrays)
-        save_dict = {}
-        for key, value in results.items():
-            if isinstance(value, dict) and value.get('success', False):
-                for subkey, subvalue in value.items():
-                    if isinstance(subvalue, np.ndarray):
-                        save_dict[f"{key}_{subkey}"] = subvalue
-
-        if save_dict:
-            np.savez(results_file, **save_dict)
 
         print(f"\nAnalysis completed successfully!")
         print(f"Results saved to: {analysis_output_dir}")
@@ -573,32 +581,3 @@ def run_vae_interpretability_analysis(vae_model, X_train, y_train, snp_data_loc)
     except Exception as e:
         print(f"Analysis failed: {e}")
         return None
-
-
-# Example usage function that can be imported and used in main script
-def analyze_vae_interpretability(vae_model, X_train, y_train, snp_data_loc):
-    """
-    Wrapper function for easy importing and usage.
-
-    Args:
-        vae_model: Trained VAE model
-        X_train: Training data
-        y_train: Training labels
-        snp_data_loc: Path to SNP data file
-
-    Returns:
-        dict: Analysis results
-    """
-    return run_vae_interpretability_analysis(vae_model, X_train, y_train, snp_data_loc)
-
-
-# For integration into main script, add this import and call:
-#
-# # Import at the top of rbam_main.py:
-# from runner.rbam_shap_analysis import analyze_vae_interpretability
-#
-# # Add this line after VAE training and before classifier training:
-# if 'best_vae_model' in locals() and best_vae_model is not None:
-#     interpretability_results = analyze_vae_interpretability(
-#         best_vae_model, X_train, y_train, snp_data_loc
-#     )

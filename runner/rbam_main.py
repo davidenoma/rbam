@@ -245,7 +245,7 @@ feature_importance_encoder = utils.extract_encoder_weights(best_model)
 # utils.obtain_snps_and_weights(X_train, feature_importance_decoder, bim, snp_data_loc, "decoder", hopt=hopt)
 # utils.obtain_snps_and_weights(X_train, feature_importance_encoder, bim, snp_data_loc, "encoder", hopt=hopt)
 
-# Add this to your main execution section after VAE training:
+# Replace the existing SHAP analysis section with this corrected version:
 
 print("Starting SHAP analysis for VAE interpretability...")
 
@@ -254,37 +254,139 @@ shap_output_dir = f"shap_analysis/{os.path.splitext(os.path.basename(snp_data_lo
 os.makedirs(shap_output_dir, exist_ok=True)
 
 try:
-    # Perform SHAP analysis
-    shap_results = rbam_shap_analysis.explain_vae_with_shap_robust(best_model, X_train, sample_size=100)
+    # Check if we have the required variables
+    vae_model = best_model
+    has_labels = 'y_train' in locals() and y_train is not None
 
-    # Create SHAP visualizations
-    rbam_shap_analysis.plot_shap_analysis_robust(shap_results, save_path=shap_output_dir)
+    # Run individual analyses with proper error handling
+    results = {}
 
-    # Analyze individual latent dimensions
-    dimension_analysis = rbam_shap_analysis.analyze_feature_importance_alternative(best_model, X_train)
-
-    # Comprehensive latent space analysis
-    if 'y_train' in locals():
-        latent_analysis = rbam_shap_analysis.analyze_latent_space_interpretability(
-            best_model, X_train, y_train, save_path=shap_output_dir
+    # 1. Try SHAP analysis with robust error handling
+    print("\n=== Attempting SHAP Analysis ===")
+    try:
+        shap_results = rbam_shap_analysis.explain_vae_with_shap_robust(
+            vae_model, X_train, sample_size=50
         )
+
+        if shap_results and shap_results.get('success', False):
+            print("SHAP analysis successful!")
+            results['shap'] = shap_results
+
+            # Plot SHAP results
+            rbam_shap_analysis.plot_shap_analysis_robust(shap_results, save_path=shap_output_dir)
+
+            # Save SHAP values
+            if 'encoder_shap_values' in shap_results:
+                np.savez(
+                    os.path.join(shap_output_dir, "shap_values.npz"),
+                    encoder_shap_values=shap_results['encoder_shap_values'],
+                    explain_data=shap_results['explain_data']
+                )
+        else:
+            print("SHAP analysis failed or returned invalid results")
+            print(f"SHAP results: {shap_results}")
+
+    except Exception as shap_error:
+        print(f"SHAP analysis failed with error: {shap_error}")
+
+    # 2. Gradient-based feature importance (more reliable fallback)
+    print("\n=== Gradient-based Feature Importance ===")
+    try:
+        importance_results = rbam_shap_analysis.analyze_feature_importance_alternative(
+            vae_model, X_train, num_features=20
+        )
+
+        if importance_results and importance_results.get('success', False):
+            print("Gradient analysis successful!")
+            results['gradient_importance'] = importance_results
+            rbam_shap_analysis.plot_feature_importance(importance_results, save_path=shap_output_dir)
+        else:
+            print("Gradient analysis failed")
+
+    except Exception as grad_error:
+        print(f"Gradient analysis failed with error: {grad_error}")
+
+    # 3. Latent space analysis
+    print("\n=== Latent Space Analysis ===")
+    try:
+        latent_results = rbam_shap_analysis.analyze_latent_space_interpretability(
+            vae_model, X_train, y_data=y_train if has_labels else None, save_path=shap_output_dir
+        )
+
+        if latent_results and latent_results.get('success', False):
+            print("Latent space analysis successful!")
+            results['latent_analysis'] = latent_results
+        else:
+            print("Latent space analysis failed")
+
+    except Exception as latent_error:
+        print(f"Latent space analysis failed with error: {latent_error}")
+
+    # 4. Reconstruction analysis
+    print("\n=== Reconstruction Pattern Analysis ===")
+    try:
+        reconstruction_results = rbam_shap_analysis.analyze_reconstruction_patterns(
+            vae_model, X_train, save_path=shap_output_dir
+        )
+
+        if reconstruction_results and reconstruction_results.get('success', False):
+            print("Reconstruction analysis successful!")
+            results['reconstruction'] = reconstruction_results
+        else:
+            print("Reconstruction analysis failed")
+
+    except Exception as recon_error:
+        print(f"Reconstruction analysis failed with error: {recon_error}")
+
+    # Summary of completed analyses
+    print("\n" + "=" * 60)
+    print("ANALYSIS SUMMARY")
+    print("=" * 60)
+
+    successful_analyses = []
+    failed_analyses = []
+
+    analysis_types = ['shap', 'gradient_importance', 'latent_analysis', 'reconstruction']
+
+    for analysis_name in analysis_types:
+        if analysis_name in results and results[analysis_name].get('success', False):
+            successful_analyses.append(analysis_name)
+            print(f"✓ {analysis_name.replace('_', ' ').title()}: COMPLETED")
+        else:
+            failed_analyses.append(analysis_name)
+            print(f"✗ {analysis_name.replace('_', ' ').title()}: FAILED")
+
+    # Save summary
+    summary_file = os.path.join(shap_output_dir, "analysis_summary.txt")
+    with open(summary_file, 'w') as f:
+        f.write("VAE Interpretability Analysis Summary\n")
+        f.write("=" * 50 + "\n\n")
+        f.write(f"Model file: {os.path.basename(snp_data_loc)}\n")
+        f.write(f"Input dimensions: {X_train.shape[1]}\n")
+        f.write(f"Training samples: {X_train.shape[0]}\n")
+        f.write(f"Has phenotype labels: {has_labels}\n\n")
+
+        f.write("Completed Analyses:\n")
+        for analysis in successful_analyses:
+            f.write(f"  ✓ {analysis.replace('_', ' ').title()}\n")
+
+        f.write("\nFailed Analyses:\n")
+        for analysis in failed_analyses:
+            f.write(f"  ✗ {analysis.replace('_', ' ').title()}\n")
+
+        f.write(f"\nResults saved to: {shap_output_dir}\n")
+
+    print(f"\nAnalysis completed! Results saved to: {shap_output_dir}")
+    print(f"Summary saved to: {summary_file}")
+
+    if len(successful_analyses) == 0:
+        print("WARNING: All analyses failed. Check your VAE model and data.")
     else:
-        latent_analysis = rbam_shap_analysis.analyze_latent_space_interpretability(
-            best_model, X_train, save_path=shap_output_dir
-        )
-
-    # Save SHAP values for further analysis
-    np.savez(
-        os.path.join(shap_output_dir, "shap_values.npz"),
-        encoder_shap_values=shap_results['encoder_shap_values'],
-        reconstruction_shap_values=shap_results['reconstruction_shap_values'],
-        explain_data=shap_results['explain_data']
-    )
-
-    print(f"SHAP analysis completed. Results saved to: {shap_output_dir}")
+        print(f"Successfully completed {len(successful_analyses)} out of 4 analyses.")
 
 except Exception as e:
-    print(f"SHAP analysis failed: {e}")
+    print(f"Overall analysis failed: {e}")
+    import traceback
+
+    traceback.print_exc()
     print("Continuing with standard analysis...")
-
-
