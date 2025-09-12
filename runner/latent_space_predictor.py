@@ -51,7 +51,6 @@ def load_model(snp_data_loc):
     else:
         return None
 
-
 # Load data
 snp_data_loc = sys.argv[1]
 
@@ -222,13 +221,7 @@ r2_whole = np.mean(utils.evaluate_r2(snp_data, reconstructed_full_data))
 utils.save_r2_scores(snp_data_loc, r2_train, r2_test, r2_whole, hopt=hopt)
 
 
-# Print results
-print("MSE (Train):", mse_train)
-print("MSE (Test):", mse_test)
 print("MSE (Whole):", mse_whole)
-
-print("R² (Train):", r2_train)
-print("R² (Test):", r2_test)
 print("R² (Whole):", r2_whole)
 
 print("Cross Validation")
@@ -237,20 +230,12 @@ print("Cross Validation")
 (
     avg_mse_train, avg_mse_test,
     avg_r2_train, avg_r2_test,
-    # avg_adj_r2_train, avg_adj_r2_test,
     avg_pearson_corr_train, avg_pearson_corr_test
 ) = utils.cross_validate_vae(snp_data, best_model)
 
 # Save cross-validation metrics
 utils.save_mse_values_cv(snp_data_loc, avg_mse_train, avg_mse_test, hopt=hopt)
 utils.save_r2_scores_cv(snp_data_loc, avg_r2_train, avg_r2_test, hopt=hopt)
-
-# Print cross-validation results
-print("Average Training MSE:", avg_mse_train)
-print("Average Testing MSE:", avg_mse_test)
-print("Average Training R^2:", avg_r2_train)
-print("Average Testing R^2:", avg_r2_test)
-
 
 # Extract latent vectors
 encoder = best_vae_model.encoder

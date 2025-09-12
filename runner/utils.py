@@ -25,14 +25,12 @@ def extract_phenotype(genotype_file):
     """
     # Construct the awk command to extract the phenotype column, skipping the header
     awk_command = f"awk -F' ' 'NR > 1 {{print $6}}' {genotype_file}"
-    print(genotype_file)
 
     # Run the awk command and capture the output
     result = subprocess.run(awk_command, shell=True, capture_output=True, text=True)
 
     # Convert the result to a list of phenotype values
     phenotype = result.stdout.strip().split('\n')
-    print(phenotype)
 
     # Convert to a Pandas Series
     phenotype = pd.Series(phenotype, dtype='float')
@@ -72,13 +70,6 @@ def load_real_genotype_data(snp_data_loc):
         snp_data = pd.concat([snp_data, chunk])
 
         i += 1
-
-    # Process SNP IDs to remove suffixes (e.g., "_A", "_T")
-    # snp_ids = snp_data.columns.str.replace(r'_[ATGC]$', '', regex=True)
-    #
-    # # Replace old column names with cleaned SNP IDs
-    # snp_data.columns = snp_ids
-    # Since the phenotype is already extracted, we don't need to extract it again.
     # Remove the PHENOTYPE column if it is still in the DataFrame
     if 'PHENOTYPE' in snp_data.columns:
         snp_data = snp_data.drop(columns=['PHENOTYPE'])
@@ -115,10 +106,6 @@ def load_real_genotype_data_case_control(snp_data_loc):
     else:
         # Handle the case where 'PHENOTYPE' column is not present
         pass
-    # Removing -9
-    # columns_to_remove = snp_data.columns[snp_data.eq(-9).any()]
-    # snp_data = snp_data.drop(columns=columns_to_remove)
-    #
     # # Reset index
     snp_data.reset_index(inplace=True, drop=True)
     # snp_data = snp_data.dropna(axis=1)
