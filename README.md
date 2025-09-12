@@ -33,7 +33,7 @@ pip install tensorflow numpy pandas scikit-learn hyperopt xgboost shap matplotli
 
 1. Clone the RBAM repository:
 ```bash
-git clone https://github.com/your-username/rbam.git
+git clone https://github.com/davidenoma/rbam.git
 cd rbam
 ```
 
