@@ -386,28 +386,15 @@ for model_type, space in classifier_space.items():
         best_model.fit(z_mean_train, y_train)
 
 
-    # Evaluate classifier
-
-    phenotype_predictions_test = best_model.predict(z_mean_test)
-      # --- probabilities for AUC, thresholded classes for accuracy ---
-
-    if isinstance(best_model, tf.keras.Model):
-                proba_test = best_model.predict(z_mean_test, verbose=0).ravel()
-    else:
-            proba_test = best_model.predict_proba(z_mean_test)[:, 1]
-
-    y_pred_test = (proba_test > 0.5).astype(int)
-
 
     # Cross-validation for each classifier
-    avg_accuracy_train, avg_accuracy_val, avg_auc_train, avg_auc_val = cross_validate_classifier(
-        z_mean_train, y_train, best_model)
+    avg_accuracy_val, avg_auc_val = cross_validate_classifier( z_mean_train, y_train, best_model)
 
-    # Save classifier metrics, including R²
-    save_classifier_metrics(snp_data_loc, avg_accuracy_train, avg_auc_train, avg_accuracy_val, avg_auc_val
+    # Save classifier metrics,
+    save_classifier_metrics(snp_data_loc, avg_accuracy_val, avg_auc_val
                             ,hopt=f"{hopt}/{model_type}")
 
     print(
-        f"Cross-Validation Accuracy for {model_type} ({snp_file_name}) - Train: {avg_accuracy_train}, Test: {avg_accuracy_val}")
-    print(f"Cross-Validation AUC for {model_type} ({snp_file_name}) - Train: {avg_auc_train}, Test: {avg_auc_val}")
+        f"Cross-Validation Accuracy for {model_type} ({snp_file_name}) : {avg_accuracy_val}")
+    print(f"Cross-Validation AUC for {model_type} ({snp_file_name} : {avg_auc_val}")
 

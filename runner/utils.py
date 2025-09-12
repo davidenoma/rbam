@@ -221,22 +221,16 @@ def save_plots(history, snp_data_loc, hopt=None):
 
 
 
-def save_classifier_metrics(snp_data_loc, train_accuracy, train_auc, test_accuracy, test_auc,
+def save_classifier_metrics(snp_data_loc, accuracy, auc,
                          hopt=None):
     """
     Save the classifier metrics including accuracy, AUC, and R² to a file.
 
     Parameters:
     snp_data_loc (str): Location of the SNP data.
-    train_accuracy (float): Training accuracy score.
-    train_auc (float): Training AUC score.
-    test_accuracy (float): Validation accuracy score.
-    test_auc (float): Validation AUC score.
-    ind_test_accuracy (float): Independent test accuracy score.
-    ind_test_auc (float): Independent test AUC score.
-    ind_test_r2 (float): Independent test R² score.
-    train_r2 (float): Cross-validation train R² score.
-    test_r2 (float): Cross-validation test R² score.
+
+    accuracy (float): Validation accuracy score.
+    auc (float): Validation AUC score.
     hopt (str): Optional hyperparameter optimization identifier.
     """
     output_folder = "model_outputs"
@@ -250,12 +244,9 @@ def save_classifier_metrics(snp_data_loc, train_accuracy, train_auc, test_accura
     with open(os.path.join(output_folder,
                            f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_classifier_metrics.txt"),
               "w") as file:
-        file.write(f"Train Accuracy: {train_accuracy}\n")
-        file.write(f"Train AUC: {train_auc}\n")
-        # file.write(f"Train R²: {train_r2}\n")
-        file.write(f"Test Accuracy: {test_accuracy}\n")
-        file.write(f"Test AUC: {test_auc}\n")
-        # file.write(f"Test R²: {test_r2}\n")
+
+        file.write(f"Model Accuracy: {accuracy}\n")
+        file.write(f"Model AUC: {auc}\n")
 
 
 
@@ -355,14 +346,14 @@ def load_model(snp_data_loc):
         # return tf.saved_model.load(filepath)
     else:
         return None
+
 def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
     # Initialize lists to store metrics for all folds
     mse_train_list = []
     mse_val_list = []
     r2_train_list = []
     r2_val_list = []
-    adj_r2_train_list = []
-    adj_r2_val_list = []
+
     pearson_corr_train_list = []
     pearson_corr_val_list = []
 
@@ -386,10 +377,6 @@ def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
         r2_train = evaluate_r2(X_train, reconstructed_data_train)
         r2_val = evaluate_r2(X_val, reconstructed_data_val)
 
-        # Calculate Adjusted R-squared
-        n_train, p_train = X_train.shape
-        n_val, p_val = X_val.shape
-
         # Append metrics to lists
         mse_train_list.append(mse_train)
         mse_val_list.append(mse_val)
@@ -412,12 +399,11 @@ def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
         avg_mse_val,
         avg_r2_train,
         avg_r2_val,
-
         avg_pearson_corr_train,
         avg_pearson_corr_val,
     )
 
-#     return avg_accuracy_train, avg_accuracy_val, avg_auc_train, avg_auc_val
+
 def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
     """
     Uses K-fold CV without re-using the previously fitted `best_model`.
@@ -427,7 +413,7 @@ def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
     kf   = StratifiedKFold(n_splits=n_splits, shuffle=True,
                            random_state=random_state)
 
-    acc_tr, acc_val, auc_tr, auc_val = [], [], [], []
+    acc_val, auc_val = [] , []
 
     for tr_idx, val_idx in kf.split(X, y):
         X_tr, X_val = X[tr_idx], X[val_idx]
@@ -439,28 +425,23 @@ def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
                                loss='binary_crossentropy')
             fold_model.fit(X_tr, y_tr,
                            epochs=10, batch_size=32, verbose=0)
-            y_tr_proba  = fold_model.predict(X_tr, verbose=0).ravel()
             y_val_proba = fold_model.predict(X_val, verbose=0).ravel()
         else:
             fold_model = clone(model)
             fold_model.fit(X_tr, y_tr)
-            y_tr_proba  = (fold_model.predict_proba(X_tr)[:, 1]
-                           if hasattr(fold_model, "predict_proba")
-                           else fold_model.predict(X_tr))
             y_val_proba = (fold_model.predict_proba(X_val)[:, 1]
                            if hasattr(fold_model, "predict_proba")
                            else fold_model.predict(X_val))
 
-        y_tr_pred  = (y_tr_proba  > 0.5).astype(int)
+
         y_val_pred = (y_val_proba > 0.5).astype(int)
 
-        acc_tr.append(accuracy_score(y_tr, y_tr_pred))
+
         acc_val.append(accuracy_score(y_val, y_val_pred))
-        auc_tr.append(roc_auc_score(y_tr, y_tr_proba))
         auc_val.append(roc_auc_score(y_val, y_val_proba))
 
-    return (np.mean(acc_tr),  np.mean(acc_val),
-            np.mean(auc_tr), np.mean(auc_val))
+    return ( np.mean(acc_val),
+            np.mean(auc_val))
 
 
 
