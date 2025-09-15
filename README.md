@@ -143,7 +143,7 @@ python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --recon
 1. **Data Preprocessing:**
     - LD pruning using PLINK (`--indep-pairwise 50 5 0.2`)
    - Genotype folder must bear the same name as the genotype ( bed, bim and fam ) files e.g.
-     test_genotype/
+     - test_genotype/
         - test_genotype.bim
         - test_genotype.fam
         - test_genotype.bed
