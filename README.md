@@ -34,12 +34,11 @@ pip install tensorflow numpy pandas scikit-learn hyperopt xgboost shap matplotli
 1. Clone the RBAM repository:
 ```bash
 git clone https://github.com/davidenoma/rbam.git
-cd rbam
 ```
 
 2. Clone the MOKA pipeline (required for association mapping):
 ```bash
-git clone https://github.com/davidenoma/moka.git ~/moka
+git clone https://github.com/davidenoma/moka.git 
 ```
 
 3. Install Python dependencies:
