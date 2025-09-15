@@ -38,7 +38,7 @@ git clone https://github.com/davidenoma/rbam.git
 
 2. Clone the MOKA pipeline (required for association mapping):
 ```bash
-git clone https://github.com/davidenoma/moka.git 
+git clone https://github.com/davidenoma/moka.git  ~/moka
 ```
 
 3. Install Python dependencies:
