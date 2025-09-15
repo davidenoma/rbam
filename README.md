@@ -114,7 +114,7 @@ python runner/latent_space_predictor.py <genotype_file.raw>
 **Output:**
 - Classification results: `model_outputs/rbam_classifier/`
 - Performance metrics for each classifier
-- Cross-validation results
+
 
 ### 3. Single Folder Processing with MOKA Pipeline
 
@@ -126,7 +126,6 @@ python single_folder_reconstruction_and_moka.py <folder_path> [options]
 
 **Options:**
 - `--quantitative`: For quantitative traits (default: binary/case-control)
-- `--no-spectral`: Disable spectral decorrelation
 - `--reconstruction`: Enable genotype reconstruction
 
 **Example:**
@@ -159,7 +158,6 @@ python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --recon
      - `dec`: Decoder weights  
      - `enc_dec`: Combined weights
      - `shap`: SHAP-based weights
-   - Spectral decorrelation options (`_sd` suffix)
 
 4. **Results Generation:**
    - GWAS results for each weight type
@@ -254,8 +252,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For questions and support:
 - Open an issue on GitHub
-- Contact: [your-email]
-
+- Contact: david.enoma@ucalgary.ca or quan.long@ucalgary.ca
 ## Acknowledgments
 
 - UK Biobank, dbGaP, and WTCCC for providing genetic data
