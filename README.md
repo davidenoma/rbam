@@ -46,9 +46,11 @@ git clone https://github.com/davidenoma/moka.git  ~/moka
 pip install -r requirements.txt
 ```
 
-## Data Preparation
+## Data Input
 
-Your genotype data should be in PLINK binary format (.bed, .bim, .fam files). The framework supports both:
+Your input genotype data must be in PLINK binary format (.bed, .bim, .fam files). 
+
+The framework supports both:
 - **Case-control studies** (binary phenotypes)
 - **Quantitative traits** (continuous phenotypes)
 
@@ -63,6 +65,9 @@ python runner/rbam_main.py <genotype_file.raw> <genotype_file.bim> <phenotype_ty
 
 **Parameters:**
 - `<genotype_file.raw>`: Path to PLINK raw format genotype file
+```bash
+plink --recode A --bfile genotype_file --out genotype_file
+```
 - `<genotype_file.bim>`: Path to corresponding BIM file
 - `<phenotype_type>`: Either `"cc"` (case-control) or `"quantitative"`
 
