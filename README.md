@@ -141,16 +141,21 @@ python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --recon
 
 **Workflow:**
 1. **Data Preprocessing:**
-   - LD pruning using PLINK (`--indep-pairwise 50 5 0.2`)
+    - LD pruning using PLINK (`--indep-pairwise 50 5 0.2`)
+   - Genotype folder must bear the same name as the genotype ( bed, bim and fam ) files e.g.
+     test_genotype/
+        - test_genotype.bim
+        - test_genotype.fam
+        - test_genotype.bed
    - Conversion to raw format
    - Missing value imputation
 
-2. **Model Training:**
+3. **Model Training:**
    - VAE and Autoencoder training
    - Weight extraction (encoder, decoder, combined)
    - SHAP analysis for feature importance
 
-3. **Association Mapping:**
+4. **Association Mapping:**
    - Integration with MOKA pipeline
    - Multiple weight types analysis:
      - `enc`: Encoder weights
@@ -158,7 +163,7 @@ python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --recon
      - `enc_dec`: Combined weights
      - `shap`: SHAP-based weights
 
-4. **Results Generation:**
+5. **Results Generation:**
    - GWAS results for each weight type
    - Manhattan plots
    - Merged association results
