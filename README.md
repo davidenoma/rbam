@@ -1,4 +1,4 @@
-# RBAM: Representation Learning-Based Association Mapping
+# RBAM: Representation Learning-Based Genome-wide Association Mapping
 
 <img width="600" height="600" alt="rbam_method,rbam_logo" src="https://github.com/user-attachments/assets/150c58a8-8e1e-4824-bc44-11efbd2cd2c7" />
 
