@@ -1,13 +1,14 @@
 # RBAM: Representation Learning-Based Genome-wide Association Mapping
 
-<!-- <img width="600" height="600" alt="rbam_method,rbam_logo" src="https://github.com/user-attachments/assets/150c58a8-8e1e-4824-bc44-11efbd2cd2c7" />
--->
-<img width="600" height="600" alt="image" src="https://github.com/user-attachments/assets/5bb649a6-5cac-417a-8e77-79e1d7b3770a" />
+ <img width="600" height="600" alt="rbam_method,rbam_logo" src="https://github.com/user-attachments/assets/150c58a8-8e1e-4824-bc44-11efbd2cd2c7" />
+
 
 
 ## Overview
 RBAM  is a framework that leverages variational autoencoders (VAE) to learn latent genotype representations, facilitating representation-informed association mapping and phenotype classification. This approach addresses limitations of traditional GWAS by accounting for polygenicity, epistatic interactions, and linkage disequilibrium.
-
+<div align="center">
+    <img width="600" height="600" alt="rbam_final" src="https://github.com/user-attachments/assets/388e92ba-cfd5-42de-aeff-2ac9632b094f" />
+</div>
 ## Abstract
 
 Genome-wide association studies (GWAS) have provided key insights into the genetic architecture of complex diseases. However, traditional approaches often fall short in accounting for polygenicity, epistatic interactions, and linkage diequilibrium, leading to reduced power. We present Representation Learning-Based Association Mapping (RBAM), a framework that leverages variational autoencoders (VAE) to learn latent genotype representations, facilitating representation-informed association mapping and phenotype classification. Using 17 complex disorders and traits spanning brain disorders, immunological traits, cancers, cardiometabolic, and quantitative phenotypes, GWAS samples from the UK Biobank, dbGaP, and WTCCC, RBAM demonstrates superior power to detect validated gene-disease associations, particularly validated via DisGeNET disease-specific databases. Simulation studies confirm that RBAM maintains a controlled Type I error rate. Functional analysis reveals overlapping genetic pathways among different diseases. Overall, RBAM provides a robust and interpretable framework, bridging the gap between unsupervised representation learning and association mapping.
@@ -238,16 +239,10 @@ The framework provides comprehensive evaluation:
 
 ## Citation
 
-If you use RBAM in your research, please cite:
+If you use RBAM in your research, please cite: 
+Representation learning-based genome-wide association mapping discovers genes underlying complex traits
+https://doi.org/10.21203/rs.3.rs-7624342/v1  
 
-```bibtex
-@article{rbam2024,
-  title={Representation learning-based genome-wide association mapping discovers genes underlying complex traits},
-  author={[Authors]},
-  journal={[Journal]},
-  year={2024}
-}
-```
 
 ## Contributing
 
