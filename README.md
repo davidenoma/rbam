@@ -6,15 +6,16 @@
 
 ## Overview
 RBAM  is a framework that leverages variational autoencoders (VAE) to learn latent genotype representations, facilitating representation-informed association mapping and phenotype classification. This approach addresses limitations of traditional GWAS by accounting for polygenicity, epistatic interactions, and linkage disequilibrium.
-<div align="center">
-    <img width="600" height="600" alt="rbam_final" src="https://github.com/user-attachments/assets/388e92ba-cfd5-42de-aeff-2ac9632b094f" />
-</div>
+
+
 ## Abstract
 
 Genome-wide association studies (GWAS) have provided key insights into the genetic architecture of complex diseases. However, traditional approaches often fall short in accounting for polygenicity, epistatic interactions, and linkage diequilibrium, leading to reduced power. We present Representation Learning-Based Association Mapping (RBAM), a framework that leverages variational autoencoders (VAE) to learn latent genotype representations, facilitating representation-informed association mapping and phenotype classification. Using 17 complex disorders and traits spanning brain disorders, immunological traits, cancers, cardiometabolic, and quantitative phenotypes, GWAS samples from the UK Biobank, dbGaP, and WTCCC, RBAM demonstrates superior power to detect validated gene-disease associations, particularly validated via DisGeNET disease-specific databases. Simulation studies confirm that RBAM maintains a controlled Type I error rate. Functional analysis reveals overlapping genetic pathways among different diseases. Overall, RBAM provides a robust and interpretable framework, bridging the gap between unsupervised representation learning and association mapping.
 
 **Keywords:** Representation learning, Variational auto-encoder, Genome-wide association study, Kernel association testing, Complex traits, Polygenic risk prediction
-
+<div align="center">
+    <img width="600" height="600" alt="rbam_final" src="https://github.com/user-attachments/assets/388e92ba-cfd5-42de-aeff-2ac9632b094f" />
+</div>
 ## Prerequisites
 
 ### Software Requirements
