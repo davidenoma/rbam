@@ -16,7 +16,7 @@ Genome-wide association studies (GWAS) have provided key insights into the genet
 <div align="center">
     <img width="600" height="600" alt="rbam_final" src="https://github.com/user-attachments/assets/388e92ba-cfd5-42de-aeff-2ac9632b094f" />
 </div>
-## Prerequisites
+
 
 ### Software Requirements
 - Python 3.8+
