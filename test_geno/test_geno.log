@@ -1,0 +1,24 @@
+PLINK v1.90b7.2 64-bit (11 Dec 2023)
+Options in effect:
+  --bfile test_geno/test_geno
+  --out test_geno/test_geno
+  --recode A
+
+Hostname: koralis.local
+Working directory: /Users/davidenoma/PycharmProjects/rbam
+Start time: Wed Sep 24 12:58:07 2025
+
+Random number seed: 1758740287
+16384 MB RAM detected; reserving 8192 MB for main workspace.
+2200 variants loaded from .bim file.
+2400 people (1430 males, 970 females) loaded from .fam.
+2400 phenotype values loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 2381 founders and 19 nonfounders present.
+Calculating allele frequencies... done.
+Total genotyping rate is exactly 1.
+2200 variants and 2400 people pass filters and QC.
+Among remaining phenotypes, 1200 are cases and 1200 are controls.
+--recode A to test_geno/test_geno.raw ... done.
+
+End time: Wed Sep 24 12:58:07 2025

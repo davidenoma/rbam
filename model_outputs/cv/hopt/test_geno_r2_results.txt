@@ -1,0 +1,2 @@
+R-squared (R2) for  train data: 0.22421995863004576
+R-squared (R2) for  test data: 0.22435157492554125

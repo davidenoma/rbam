@@ -17,23 +17,6 @@ Genome-wide association studies (GWAS) have provided key insights into the genet
     <img width="600" height="600" alt="rbam_final" src="https://github.com/user-attachments/assets/388e92ba-cfd5-42de-aeff-2ac9632b094f" />
 </div>
 
-
-### Software Requirements
-- Python 3.8+
-- TensorFlow 2.x
-- PLINK 1.9 or 2.0
-- Snakemake
-- CUDA-compatible GPU (recommended)
-
-### Python Dependencies
-```bash
-pip install tensorflow numpy pandas scikit-learn hyperopt xgboost shap matplotlib seaborn
-```
-
-### External Tools
-- [PLINK](https://www.cog-genomics.org/plink/) - For genotype data processing
-- [MOKA Pipeline](https://github.com/davidenoma/moka) - For association mapping
-
 ## Installation
 
 1. Clone the RBAM repository:
@@ -47,11 +30,39 @@ git clone https://github.com/davidenoma/moka.git  ~/moka
 cd ~/moka
 ```
 
-3. Install Python dependencies:
+3. (Recommended) Create a new Python 3.9 environment:
+
+#### Using Conda
+```bash
+conda create -n rbam_env python=3.9
+conda activate rbam_env
+```
+
+#### Using venv (pip)
+```bash
+python3.9 -m venv rbam_env
+source rbam_env/bin/activate
+```
+
+4. Install Python dependencies:
+
+#### Using Conda
+```bash
+conda install --file requirements.txt
+```
+
+#### Using pip
 ```bash
 pip install -r requirements.txt
 ```
 
+### External Tools
+- [PLINK](https://www.cog-genomics.org/plink/) - For genotype data processing
+- [MOKA Pipeline](https://github.com/davidenoma/moka) - For association mapping
+
+```commandline
+export PATH=$PATH:/path/to/plink
+```
 ## Data Input
 
 Your input genotype data must be in PLINK binary format (.bed, .bim, .fam files). 
@@ -60,7 +71,7 @@ The framework supports both:
 - **Case-control studies** (binary phenotypes)
 - **Quantitative traits** (continuous phenotypes)
 
-## Usage
+## Usage with test data provided
 
 ### 1. Genotype Reconstruction and Weight Extraction
 
