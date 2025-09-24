@@ -3,9 +3,11 @@ import subprocess
 import shutil
 import sys
 import traceback
+import argparse
+import urllib.request
+import zipfile
 
 # Define constants and paths
-PLINK_PATH = "plink"  # Update to the full path if PLINK is not in your $PATH
 PYTHON_PATH = "python3"  # Update to the full path if needed
 
 GENO_UTILS_PATH = os.path.join(os.path.dirname(__file__), "utils/update_config_file.py")
@@ -173,15 +175,52 @@ def process_folder(folder, is_binary=True,is_spectral_decorrelated=True,do_recon
     finally:
         os.chdir(initial_cwd)
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python script.py <folder_name> [--quantitative] [--no-spectral] [--reconstruction]")
-        sys.exit(1)
+def get_plink_binary(provided_path=None):
+    """
+    Returns the path to the PLINK binary. If not provided and not found in PATH, downloads and unzips PLINK.
+    """
+    if provided_path:
+        if os.path.isfile(provided_path) and os.access(provided_path, os.X_OK):
+            return provided_path
+        else:
+            print(f"Provided PLINK path {provided_path} is not executable or does not exist. Trying PATH...")
+    # Try to find plink in PATH
+    plink_in_path = shutil.which("plink")
+    if plink_in_path:
+        return plink_in_path
+    # Download PLINK
+    print("PLINK not found. Downloading PLINK 1.9...")
+    plink_url = "https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20210606.zip" if sys.platform.startswith("linux") else "https://s3.amazonaws.com/plink1-assets/plink_mac_20210606.zip"
+    plink_zip = "plink_download.zip"
+    plink_dir = os.path.join(os.path.dirname(__file__), "plink_bin")
+    os.makedirs(plink_dir, exist_ok=True)
+    plink_bin_path = os.path.join(plink_dir, "plink")
+    try:
+        urllib.request.urlretrieve(plink_url, plink_zip)
+        with zipfile.ZipFile(plink_zip, 'r') as zip_ref:
+            zip_ref.extractall(plink_dir)
+        os.chmod(plink_bin_path, 0o755)
+        os.remove(plink_zip)
+        print(f"PLINK downloaded and extracted to {plink_bin_path}")
+        return plink_bin_path
+    except Exception as e:
+        print("Failed to download or extract PLINK.")
+        raise e
 
-    folder_name = sys.argv[1]
-    is_binary = "--quantitative" not in sys.argv
-    is_spectral_decorrelated = "--no-spectral" not in sys.argv
-    do_reconstruction = "--reconstruction" in sys.argv
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Single folder reconstruction and MOKA pipeline integration.")
+    parser.add_argument("folder_name", help="Path to the genotype folder")
+    parser.add_argument("--quantitative", action="store_true", help="Set for quantitative traits (default: binary/case-control)")
+    parser.add_argument("--no-spectral", action="store_true", help="Disable spectral decorrelation")
+    parser.add_argument("--reconstruction", action="store_true", help="Enable genotype reconstruction")
+    parser.add_argument("--plink-path", type=str, default=None, help="Path to PLINK binary (default: auto-download if not found)")
+    args = parser.parse_args()
+
+    folder_name = args.folder_name
+    is_binary = not args.quantitative
+    is_spectral_decorrelated = not args.no_spectral
+    do_reconstruction = args.reconstruction
+    PLINK_PATH = get_plink_binary(args.plink_path)
 
     folder_path = os.path.abspath(folder_name)
 

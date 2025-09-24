@@ -6,7 +6,7 @@ import pandas as pd
 import tensorflow as tf
 from hyperopt import fmin, hp, tpe, space_eval
 from matplotlib import pyplot as plt
-import rbam_shap_analysis
+
 
 import utils
 from utils import save_summary, load_real_genotype_data_case_control, load_real_genotype_data

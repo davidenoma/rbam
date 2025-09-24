@@ -44,6 +44,7 @@ git clone https://github.com/davidenoma/rbam.git
 2. Clone the MOKA pipeline (required for association mapping):
 ```bash
 git clone https://github.com/davidenoma/moka.git  ~/moka
+cd ~/moka
 ```
 
 3. Install Python dependencies:
@@ -136,10 +137,11 @@ python single_folder_reconstruction_and_moka.py <folder_path> [options]
 **Options:**
 - `--quantitative`: For quantitative traits (default: binary/case-control)
 - `--reconstruction`: Enable genotype reconstruction
+- `--plink-path <path>`: Specify the path to the PLINK binary (default: `plink` in PATH)
 
 **Example:**
 ```bash
-# Binary trait analysis
+# Binary trait analysis with default PLINK
 python single_folder_reconstruction_and_moka.py /path/to/genotype_folder
 
 # Quantitative trait analysis
@@ -147,16 +149,52 @@ python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --quant
 
 # With genotype reconstruction
 python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --reconstruction
+
+# Specify custom PLINK binary location
+python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --plink-path /usr/local/bin/plink
 ```
+
+### IMPORTANT: Folder and Genotype File Naming
+
+- The folder name **must match** the genotype file prefix. For example, if your genotype files are named `test_geno.bed`, `test_geno.bim`, and `test_geno.fam`, they must be placed in a folder named `test_geno/`.
+- Example structure:
+  ```
+  test_geno/
+    ├── test_geno.bed
+    ├── test_geno.bim
+    └── test_geno.fam
+  ```
+
+### Automatic PLINK Download
+- If you do **not** provide `--plink-path` and PLINK is not found in your system PATH, the pipeline will automatically download and unzip PLINK for you (Linux/macOS supported).
+- You can still specify a custom PLINK binary using `--plink-path` if needed.
+
+### Example: Using Provided test_geno Data
+
+```bash
+# Run the pipeline on the provided test_geno example (binary trait)
+python single_folder_reconstruction_and_moka.py test_geno
+
+# For quantitative trait
+python single_folder_reconstruction_and_moka.py test_geno --quantitative
+
+# With genotype reconstruction
+python single_folder_reconstruction_and_moka.py test_geno --reconstruction
+
+# Specify custom PLINK binary location
+python single_folder_reconstruction_and_moka.py test_geno --plink-path /usr/local/bin/plink
+```
+
+**Note:** If you do not specify `--plink-path` and PLINK is not installed, the script will automatically download and use PLINK.
 
 **Workflow:**
 1. **Data Preprocessing:**
     - LD pruning using PLINK (`--indep-pairwise 50 5 0.2`)
    - Genotype folder must bear the same name as the genotype ( bed, bim and fam ) files e.g.
-     - test_genotype/
-        - test_genotype.bim
-        - test_genotype.fam
-        - test_genotype.bed
+     - test_geno/
+        - test_geno.bim
+        - test_geno.fam
+        - test_geno.bed
    - Conversion to raw format
    - Missing value imputation
 
