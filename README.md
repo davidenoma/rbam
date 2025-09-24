@@ -27,7 +27,6 @@ git clone https://github.com/davidenoma/rbam.git
 2. Clone the MOKA pipeline (required for association mapping):
 ```bash
 git clone https://github.com/davidenoma/moka.git  ~/moka
-cd ~/moka
 ```
 
 3. (Recommended) Create a new Python 3.9 environment:
@@ -77,30 +76,25 @@ The framework supports both:
 
 #### For Variational Autoencoder (VAE)
 ```bash
-python runner/rbam_main.py <genotype_file.raw> <genotype_file.bim> <phenotype_type>
+python runner/rbam_main.py test_geno/test_geno.raw test_geno/test_geno.bim cc
 ```
 
 **Parameters:**
-- `<genotype_file.raw>`: Path to PLINK raw format genotype file
+- `test_geno/test_geno.raw`: Path to PLINK raw format genotype file
 ```bash
 plink --recode A --bfile genotype_file --out genotype_file
 ```
-- `<genotype_file.bim>`: Path to corresponding BIM file
+- `test_geno/test_geno.bim`: Path to corresponding BIM file
 - `<phenotype_type>`: Either `"cc"` (case-control) or `"quantitative"`
-
-**Example:**
-```bash
-python runner/rbam_main.py data/diabetes.raw data/diabetes.bim cc
-```
 
 **Output:**
 - Trained VAE model saved in `model/` or `model_cc_com_qt/`
-- Reconstruction metrics (MSE, R², RMSE, Pearson correlation)
+- Reconstruction metrics (MSE and R²)
 - Encoder and decoder weights extracted to `output_weights/`
 
-#### For Vanilla Autoencoder with XAI
+#### For Autoencoder with XAI
 ```bash
-python runner/rbam_XAI_main.py <genotype_file.raw> <genotype_file.bim> <phenotype_type>
+python runner/rbam_XAI_main.py test_geno/test_geno.raw test_geno/test_geno.bim cc
 ```
 
 **Features:**
@@ -117,7 +111,7 @@ python runner/rbam_XAI_main.py <genotype_file.raw> <genotype_file.bim> <phenotyp
 ### 2. Latent Space Classification
 
 ```bash
-python runner/latent_space_predictor.py <genotype_file.raw>
+python runner/latent_space_predictor.py test_geno/test_geno.raw
 ```
 
 **Classifiers Implemented:**
@@ -152,14 +146,14 @@ python single_folder_reconstruction_and_moka.py <folder_path> [options]
 
 **Example:**
 ```bash
-# Binary trait analysis with default PLINK
-python single_folder_reconstruction_and_moka.py /path/to/genotype_folder
+# Binary trait analysis with default PLINK and enabling reconstruction of 
+python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --reconstruction
 
 # Quantitative trait analysis
 python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --quantitative
 
-# With genotype reconstruction
-python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --reconstruction
+# Without genotype reconstruction, which is faster after model training 
+python single_folder_reconstruction_and_moka.py /path/to/genotype_folder 
 
 # Specify custom PLINK binary location
 python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --plink-path /usr/local/bin/plink
@@ -175,7 +169,11 @@ python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --plink
     ├── test_geno.bim
     └── test_geno.fam
   ```
+Remember to clone the MOKA pipeline (required for association mapping):
+```bash
+git clone https://github.com/davidenoma/moka.git  ~/moka
 
+```
 ### Automatic PLINK Download
 - If you do **not** provide `--plink-path` and PLINK is not found in your system PATH, the pipeline will automatically download and unzip PLINK for you (Linux/macOS supported).
 - You can still specify a custom PLINK binary using `--plink-path` if needed.
@@ -183,14 +181,14 @@ python single_folder_reconstruction_and_moka.py /path/to/genotype_folder --plink
 ### Example: Using Provided test_geno Data
 
 ```bash
-# Run the pipeline on the provided test_geno example (binary trait)
-python single_folder_reconstruction_and_moka.py test_geno
-
-# For quantitative trait
-python single_folder_reconstruction_and_moka.py test_geno --quantitative
-
 # With genotype reconstruction
 python single_folder_reconstruction_and_moka.py test_geno --reconstruction
+
+# For quantitative trait model
+python single_folder_reconstruction_and_moka.py test_geno --quantitative
+
+# Run the pipeline on the provided test_geno example (binary trait)
+python single_folder_reconstruction_and_moka.py test_geno
 
 # Specify custom PLINK binary location
 python single_folder_reconstruction_and_moka.py test_geno --plink-path /usr/local/bin/plink
@@ -239,9 +237,9 @@ python single_folder_reconstruction_and_moka.py test_geno --plink-path /usr/loca
 ├── output_weights/                # Extracted weights
 │   ├── hopt/                      # Binary trait weights
 │   └── hopt_cc_com_or_quant/     # Quantitative trait weights
-└── bas_pipeline/                  # MOKA pipeline results
-    ├── results/                   # Association results
-    └── plots/                     # Manhattan plots
+└── moka_pipeline/                  # MOKA pipeline results
+    ├── result_folder/                   # Association results
+    └── output_plots/                # Manhattan plots
 ```
 
 ## Key Features
@@ -266,13 +264,17 @@ python single_folder_reconstruction_and_moka.py test_geno --plink-path /usr/loca
 - **Multiple Weight Strategies**: Different biological interpretations
 - **Spectral Decorrelation**: Optional preprocessing for population structure
 
+### Refer to moka documentation for more details on association mapping steps
+#### Link https://github.com/davidenoma/moka
+
 ## Performance Metrics
 
 The framework provides comprehensive evaluation:
 
-- **Reconstruction Quality**: MSE, RMSE, R², Adjusted R², Pearson correlation
-- **Classification Performance**: Accuracy, AUC, cross-validation scores
-- **Association Power**: Manhattan plots, genomic inflation factors
+- **Reconstruction Quality**: MSE and R² scores
+- **Feature Importance**: Encoder and decoder VAE weight distributions and SHAP values on Autoencoder
+- **Classification Performance**: Cross Validated prediction metrics (Accuracy, AUC)
+- **Association Results**: Manhattan plots, KEGG and GO enrichment analyses
 
 ## Troubleshooting
 

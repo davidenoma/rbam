@@ -201,15 +201,11 @@ n_train, p_train = X_train.shape
 n_test, p_test = X_test.shape
 n_whole, p_whole = snp_data.shape
 
-# Print results
-print("MSE (Train):", mse_train)
-print("MSE (Test):", mse_test)
-print("MSE (Whole):", mse_whole)
+
+print("MSE:", mse_whole)
 
 
-print("R² (Train):", r2_train)
-print("R² (Test):", r2_test)
-print("R² (Whole):", r2_whole)
+print("R²:", r2_whole)
 
 
 print("Cross Validation")
@@ -227,12 +223,9 @@ utils.save_r2_scores_cv(snp_data_loc, avg_r2_train, avg_r2_test, hopt=hopt)
 
 # Print cross-validation results
 print("Average Training MSE:", avg_mse_train)
-print("Average Testing MSE:", avg_mse_test)
 print("Average Training R^2:", avg_r2_train)
 print("Average Testing R^2:", avg_r2_test)
 
-print("Average Training Pearson Correlation:", avg_pearson_corr_train)
-print("Average Testing Pearson Correlation:", avg_pearson_corr_test)
 
 # Extract feature importance
 feature_importance_decoder = utils.extract_decoder_reconstruction_weights(best_model)

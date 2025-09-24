@@ -22,6 +22,7 @@ for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 import utils
 from utils import load_real_genotype_data, cross_validate_classifier, save_classifier_metrics
+
 def save_model(model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
     """
     Save a TensorFlow model to a specified location.
@@ -199,7 +200,7 @@ if not best_vae_model:  # Hyperparameter optimization for VAE
                                           batch_size=best_vae_hyperparameters['batch_size'],
                                           validation_split=0.25)
 
-    utils.save_model(best_vae_model, snp_data_loc)
+    save_model(best_vae_model, snp_data_loc)
 # Calculate and save MSE and R2 scores for the VAE
 best_model = best_vae_model
 # Reconstruct input data using the trained VAE

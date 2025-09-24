@@ -1,2 +1,0 @@
-Mean Squared Error (MSE) between original and reconstructed original train data: 0.3240919947624207
-Mean Squared Error (MSE) between reconstructed test data: 0.3240919768810272

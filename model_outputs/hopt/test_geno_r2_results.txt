@@ -1,3 +1,0 @@
-R-squared (R2) for  train data: 0.2249858942578519
-R-squared (R2) for  test data: 0.22126365732833186
-R-squared (R2) for  whole data: 0.22420993885324955

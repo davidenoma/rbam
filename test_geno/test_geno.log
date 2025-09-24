@@ -1,14 +1,15 @@
 PLINK v1.90b7.2 64-bit (11 Dec 2023)
 Options in effect:
-  --bfile test_geno/test_geno
-  --out test_geno/test_geno
-  --recode A
+  --allow-no-sex
+  --bfile test_geno
+  --indep-pairwise 50 5 0.2
+  --out test_geno
 
 Hostname: koralis.local
-Working directory: /Users/davidenoma/PycharmProjects/rbam
-Start time: Wed Sep 24 12:58:07 2025
+Working directory: /Users/davidenoma/PycharmProjects/rbam/test_geno
+Start time: Wed Sep 24 14:10:48 2025
 
-Random number seed: 1758740287
+Random number seed: 1758744648
 16384 MB RAM detected; reserving 8192 MB for main workspace.
 2200 variants loaded from .bim file.
 2400 people (1430 males, 970 females) loaded from .fam.
@@ -19,6 +20,29 @@ Calculating allele frequencies... done.
 Total genotyping rate is exactly 1.
 2200 variants and 2400 people pass filters and QC.
 Among remaining phenotypes, 1200 are cases and 1200 are controls.
---recode A to test_geno/test_geno.raw ... done.
+Pruned 2 variants from chromosome 1, leaving 98.
+Pruned 0 variants from chromosome 2, leaving 100.
+Pruned 0 variants from chromosome 3, leaving 100.
+Pruned 2 variants from chromosome 4, leaving 98.
+Pruned 1 variant from chromosome 5, leaving 99.
+Pruned 1 variant from chromosome 6, leaving 99.
+Pruned 4 variants from chromosome 7, leaving 96.
+Pruned 1 variant from chromosome 8, leaving 99.
+Pruned 4 variants from chromosome 9, leaving 96.
+Pruned 2 variants from chromosome 10, leaving 98.
+Pruned 1 variant from chromosome 11, leaving 99.
+Pruned 2 variants from chromosome 12, leaving 98.
+Pruned 1 variant from chromosome 13, leaving 99.
+Pruned 2 variants from chromosome 14, leaving 98.
+Pruned 2 variants from chromosome 15, leaving 98.
+Pruned 1 variant from chromosome 16, leaving 99.
+Pruned 2 variants from chromosome 17, leaving 98.
+Pruned 4 variants from chromosome 18, leaving 96.
+Pruned 4 variants from chromosome 19, leaving 96.
+Pruned 2 variants from chromosome 20, leaving 98.
+Pruned 5 variants from chromosome 21, leaving 95.
+Pruned 4 variants from chromosome 22, leaving 96.
+Pruning complete.  47 of 2200 variants removed.
+Marker lists written to test_geno.prune.in and test_geno.prune.out .
 
-End time: Wed Sep 24 12:58:07 2025
+End time: Wed Sep 24 14:10:48 2025

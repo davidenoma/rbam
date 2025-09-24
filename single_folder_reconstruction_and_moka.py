@@ -8,7 +8,7 @@ import urllib.request
 import zipfile
 
 # Define constants and paths
-PYTHON_PATH = "python3"  # Update to the full path if needed
+PYTHON_PATH = "python"  # Update to the full path if needed
 
 GENO_UTILS_PATH = os.path.join(os.path.dirname(__file__), "utils/update_config_file.py")
 AE_PATH = os.path.join(os.path.dirname(__file__), "runner/rbam_XAI_main.py")
@@ -98,15 +98,23 @@ def process_folder(folder, is_binary=True,is_spectral_decorrelated=True,do_recon
         print(f"Copied SHAP weights from {shap_weights_file} to {shap_dest_file}")
 
         # Step 6: Use pre-cloned `bas_pipeline`
-        pipeline_path = os.path.join(folder, "bas_pipeline")
+        pipeline_path = os.path.join(folder, "moka_pipeline")
         #No need to remove existing directory, as we are copying from a pre-cloned version
         # if os.path.exists(pipeline_path):
         #     print(f"Removing existing directory: {pipeline_path}")
         #     shutil.rmtree(pipeline_path)
 
         print(f"Copying pre-cloned bas_pipeline from {BAS_PIPELINE_PATH} to {pipeline_path}")
-        shutil.copytree(BAS_PIPELINE_PATH, pipeline_path,dirs_exist_ok=True)
+        # shutil.copytree(BAS_PIPELINE_PATH, pipeline_path,dirs_exist_ok=True)
 
+        def ignore_git(dir, files):
+            return ['.git'] if '.git' in files else []
+
+        shutil.copytree(
+            BAS_PIPELINE_PATH, pipeline_path,
+            dirs_exist_ok=True,
+            ignore=ignore_git
+        )
         # Copy genotype files to bas_pipeline/genotype_data/
         genotype_data_path = os.path.join(pipeline_path, "genotype_data")
         os.makedirs(genotype_data_path, exist_ok=True)
@@ -143,9 +151,9 @@ def process_folder(folder, is_binary=True,is_spectral_decorrelated=True,do_recon
         # Step 7: Update configuration file and run Snakemake
         os.chdir(pipeline_path)
         config_file = os.path.join("config", "config.yaml")
-        template_file = os.path.join("config", "config-tmpl.yaml")
-        shutil.copy(template_file, config_file)
-        print(f"Copied template config file to {config_file}")
+        # template_file = os.path.join("config", "config-tmpl.yaml")
+        # shutil.copy(template_file, config_file)
+        # print(f"Copied template config file to {config_file}")
 
         # Run Snakemake for each weight type
         # Run Snakemake for each weight type
@@ -211,14 +219,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Single folder reconstruction and MOKA pipeline integration.")
     parser.add_argument("folder_name", help="Path to the genotype folder")
     parser.add_argument("--quantitative", action="store_true", help="Set for quantitative traits (default: binary/case-control)")
-    parser.add_argument("--no-spectral", action="store_true", help="Disable spectral decorrelation")
+    parser.add_argument("--spectral", action="store_true", help="Enable spectral decorrelation (default: disabled)")
     parser.add_argument("--reconstruction", action="store_true", help="Enable genotype reconstruction")
     parser.add_argument("--plink-path", type=str, default=None, help="Path to PLINK binary (default: auto-download if not found)")
     args = parser.parse_args()
 
     folder_name = args.folder_name
     is_binary = not args.quantitative
-    is_spectral_decorrelated = not args.no_spectral
+    is_spectral_decorrelated = args.spectral  # Now defaults to False unless --spectral is passed
     do_reconstruction = args.reconstruction
     PLINK_PATH = get_plink_binary(args.plink_path)
 
