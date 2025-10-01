@@ -371,13 +371,27 @@ for model_type, space in classifier_space.items():
         best_model.set_params(scale_pos_weight=scale_pos_weight)
         best_model.fit(z_mean_train, y_train)
 
+    # Evaluate classifier on an independent test set
+    phenotype_predictions_test = best_model.predict(z_mean_test)
+    if model_type == 'tf_classifier':
+        phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
+    else:
+        phenotype_predictions_test = best_model.predict_proba(z_mean_test)[:, 1]
+        phenotype_predictions_test = (phenotype_predictions_test > 0.5).astype(int)
+
+    ind_test_accuracy = accuracy_score(y_test, phenotype_predictions_test)
+    ind_test_auc = roc_auc_score(y_test, phenotype_predictions_test)
+
+
+    print(f"Independent Test Accuracy for {model_type} ({snp_file_name}): {ind_test_accuracy}")
+    print(f"Independent Test AUC for {model_type} ({snp_file_name}): {ind_test_auc}")
 
 
     # Cross-validation for each classifier
     avg_accuracy_val, avg_auc_val = cross_validate_classifier( z_mean_train, y_train, best_model)
 
     # Save classifier metrics,
-    save_classifier_metrics(snp_data_loc, avg_accuracy_val, avg_auc_val
+    save_classifier_metrics(snp_data_loc, avg_accuracy_val, avg_auc_val,ind_test_accuracy,ind_test_auc
                             ,hopt=f"{hopt}/{model_type}")
 
     print(

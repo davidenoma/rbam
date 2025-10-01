@@ -208,7 +208,8 @@ def save_plots(history, snp_data_loc, hopt=None):
 
 
 
-def save_classifier_metrics(snp_data_loc, accuracy, auc,
+def save_classifier_metrics(snp_data_loc, accuracy, auc, ind_test_accuracy,
+                            ind_test_auc,
                          hopt=None):
     """
     Save the classifier metrics including accuracy, AUC, and R² to a file.
@@ -234,6 +235,8 @@ def save_classifier_metrics(snp_data_loc, accuracy, auc,
 
         file.write(f"Model Accuracy: {accuracy}\n")
         file.write(f"Model AUC: {auc}\n")
+        file.write(f"Independent Test Accuracy: {ind_test_accuracy}\n")
+        file.write(f"Independent Test AUC: {ind_test_auc}\n")
 
 
 
