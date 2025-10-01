@@ -1,10 +1,8 @@
 import os
 import sys
-from statistics import mean
 
 import keras
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from hyperopt import fmin, hp, tpe, space_eval, STATUS_OK
 from sklearn.preprocessing import StandardScaler
@@ -23,34 +21,6 @@ for device in physical_devices:
 import utils
 from utils import load_real_genotype_data, cross_validate_classifier, save_classifier_metrics
 
-def save_model(model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
-    """
-    Save a TensorFlow model to a specified location.
-
-    Args:
-        model (tf.keras.Model): The model to save.
-        snp_data_loc (str): The path of the SNP data location.
-        model_name (str): The name of the model to append to the filename.
-        override (bool): If True, overwrite the existing file. Defaults to False.
-    """
-    directory = f"{os.getcwd()}/model_cc_com_qt"
-    filename = f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}.keras"
-    os.makedirs(directory, exist_ok=True)
-    filepath = os.path.join(directory, filename)
-    print(f"Saving model to filepath: {filepath}")
-    if os.path.exists(filepath) and not override:
-        raise FileExistsError(f"The file {filename} already exists. Set override=True to overwrite.")
-    model.save(filepath)
-
-def load_model(snp_data_loc):
-    """Load a TensorFlow model if it exists."""
-    directory = f"{os.getcwd()}/model_cc_com_qt"
-    filename = f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}.keras"
-    filepath = os.path.join(directory, filename)
-    if os.path.exists(filepath):
-        return keras.models.load_model(filepath, custom_objects={"VAE": VAE, "vae_loss": vae_loss})
-    else:
-        return None
 
 # Load data
 snp_data_loc = sys.argv[1]
@@ -106,7 +76,7 @@ class VAE(tf.keras.Model):
 @keras.saving.register_keras_serializable(package="Custom", name="vae_loss")
 def vae_loss(encoder):
     """Return a loss function that captures the VAE loss."""
-
+    @keras.saving.register_keras_serializable(name="loss")
     def loss(x, x_reconstructed):
         z_mean, z_log_var = tf.split(encoder(x), num_or_size_splits=2, axis=1)
         reconstruction_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(x, x_reconstructed))
@@ -150,6 +120,34 @@ def create_vae_model(input_dim, num_hidden_layers_encoder, num_hidden_layers_dec
 
     return vae
 
+def save_model(model: tf.keras.Model, snp_data_loc: str,  override: bool = True):
+    """
+    Save a TensorFlow model to a specified location.
+
+    Args:
+        model (tf.keras.Model): The model to save.
+        snp_data_loc (str): The path of the SNP data location.
+        model_name (str): The name of the model to append to the filename.
+        override (bool): If True, overwrite the existing file. Defaults to False.
+    """
+    directory = f"{os.getcwd()}/model_cc_com_qt"
+    filename = f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}.keras"
+    os.makedirs(directory, exist_ok=True)
+    filepath = os.path.join(directory, filename)
+    print(f"Saving model to filepath: {filepath}")
+    if os.path.exists(filepath) and not override:
+        raise FileExistsError(f"The file {filename} already exists. Set override=True to overwrite.")
+    model.save(filepath)
+
+def load_model(snp_data_loc):
+    """Load a TensorFlow model if it exists."""
+    directory = f"{os.getcwd()}/model_cc_com_qt"
+    filename = f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}.keras"
+    filepath = os.path.join(directory, filename)
+    if os.path.exists(filepath):
+        return keras.models.load_model(filepath, custom_objects={"VAE": VAE, "vae_loss": vae_loss},safe_mode=False)
+    else:
+        return None
 
 # Objective function for VAE
 def objective(params):
@@ -182,8 +180,13 @@ vae_space = {
                                            int(X_train.shape[1] * 0.5)])
 }
 
-# Load or train the best VAE model
-best_vae_model = load_model(snp_data_loc)
+# Load or train the best VAE model with error handling
+try:
+    best_vae_model = load_model(snp_data_loc)
+except Exception as e:
+    print(f"Error loading VAE model: {e}")
+    best_vae_model = None
+
 
 if not best_vae_model:  # Hyperparameter optimization for VAE
     best_vae = fmin(fn=objective, space=vae_space, algo=tpe.suggest, max_evals=10)
@@ -204,39 +207,31 @@ if not best_vae_model:  # Hyperparameter optimization for VAE
 # Calculate and save MSE and R2 scores for the VAE
 best_model = best_vae_model
 # Reconstruct input data using the trained VAE
-reconstructed_data_train = best_model.predict(X_train)
+
 reconstructed_data_test = best_model.predict(X_test)
 reconstructed_full_data = best_model.predict(snp_data)
 
 # Calculate MSE
-mse_train = utils.compute_rmse(X_train, reconstructed_data_train)**2
 mse_test = utils.compute_rmse(X_test, reconstructed_data_test)**2
 mse_whole = utils.compute_rmse(snp_data, reconstructed_full_data)**2
-utils.save_mse_values(snp_data_loc, mse_train, mse_test, mse_whole, hopt=hopt)
+utils.save_mse_values(snp_data_loc, mse_test, mse_whole, hopt=hopt)
 
 
 # Calculate R²
-r2_train = np.mean(utils.evaluate_r2(X_train, reconstructed_data_train))
 r2_test = np.mean(utils.evaluate_r2(X_test, reconstructed_data_test))
 r2_whole = np.mean(utils.evaluate_r2(snp_data, reconstructed_full_data))
-utils.save_r2_scores(snp_data_loc, r2_train, r2_test, r2_whole, hopt=hopt)
+utils.save_r2_scores(snp_data_loc, r2_test, r2_whole, hopt=hopt)
 
 
 print("MSE (Whole):", mse_whole)
 print("R² (Whole):", r2_whole)
 
-print("Cross Validation")
-
 # Perform cross-validation
-(
-    avg_mse_train, avg_mse_test,
-    avg_r2_train, avg_r2_test,
-    avg_pearson_corr_train, avg_pearson_corr_test
-) = utils.cross_validate_vae(snp_data, best_model)
+avg_mse_test, avg_r2_test = utils.cross_validate_vae(snp_data, best_model)
 
 # Save cross-validation metrics
-utils.save_mse_values_cv(snp_data_loc, avg_mse_train, avg_mse_test, hopt=hopt)
-utils.save_r2_scores_cv(snp_data_loc, avg_r2_train, avg_r2_test, hopt=hopt)
+utils.save_mse_values_cv(snp_data_loc, avg_mse_test, hopt=hopt)
+utils.save_r2_scores_cv(snp_data_loc, avg_r2_test, hopt=hopt)
 
 # Extract latent vectors
 encoder = best_vae_model.encoder

@@ -375,22 +375,17 @@ def cross_validate_vae(snp_data, best_model, n_splits=5, random_state=11):
 
 
     # Calculate average metrics over all folds
-    avg_mse_train = np.mean(mse_train_list)
+    # avg_mse_train = np.mean(mse_train_list)
     avg_mse_val = np.mean(mse_val_list)
-    avg_r2_train = np.mean(r2_train_list)
+    # avg_r2_train = np.mean(r2_train_list)
     avg_r2_val = np.mean(r2_val_list)
 
-    avg_pearson_corr_train = np.mean(pearson_corr_train_list)
-    avg_pearson_corr_val = np.mean(pearson_corr_val_list)
 
     # Return all metrics
     return (
-        avg_mse_train,
+
         avg_mse_val,
-        avg_r2_train,
-        avg_r2_val,
-        avg_pearson_corr_train,
-        avg_pearson_corr_val,
+        avg_r2_val
     )
 
 
@@ -435,45 +430,41 @@ def cross_validate_classifier(X, y, model, n_splits=5, random_state=11):
 
 
 
-def save_mse_values(snp_data_loc, mse_train, mse_test, mse_whole, hopt=None):
+def save_mse_values(snp_data_loc, mse_test, mse_whole, hopt=None):
     output_folder = "model_outputs"
     if hopt:
         output_folder = output_folder + "/" + hopt
     os.makedirs(output_folder, exist_ok=True)
 
     # Print the MSE values
-    print("Mean Squared Error (MSE) between original and reconstructed train data:", mse_train)
     print("Mean Squared Error (MSE) between input and reconstructed test data:", mse_test)
     print("Mean Squared Error (MSE) between input and reconstructed whole data:", mse_whole)
 
     # Write the MSE values to a file
     with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_mse_results.txt"),
               "w") as file:
-        file.write(
-            "Mean Squared Error (MSE) between original and reconstructed original train data: " + str(mse_train) + "\n")
+
         file.write("Mean Squared Error (MSE) between reconstructed test data: " + str(mse_test) + "\n")
         file.write("Mean Squared Error (MSE) between reconstructed whole data: " + str(mse_whole) + "\n")
 
 
-def save_mse_values_cv(snp_data_loc, mse_train, mse_test, hopt=None):
+def save_mse_values_cv(snp_data_loc, mse_test, hopt=None):
     output_folder = "model_outputs"
     if hopt:
         output_folder = output_folder + "/" + hopt
     os.makedirs(output_folder, exist_ok=True)
 
     # Print the MSE values
-    print("Mean Squared Error (MSE) between original and reconstructed train data:", mse_train)
+
     print("Mean Squared Error (MSE) between input and reconstructed test data:", mse_test)
 
     # Write the MSE values to a file
     with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_mse_results.txt"),
               "w") as file:
-        file.write(
-            "Mean Squared Error (MSE) between original and reconstructed original train data: " + str(mse_train) + "\n")
         file.write("Mean Squared Error (MSE) between reconstructed test data: " + str(mse_test) + "\n")
 
 
-def save_r2_scores(snp_data_loc, r2_train, r2test, r2whole, hopt=None):
+def save_r2_scores(snp_data_loc, r2test, r2whole, hopt=None):
     output_folder = "model_outputs"
 
     if hopt:
@@ -481,19 +472,17 @@ def save_r2_scores(snp_data_loc, r2_train, r2test, r2whole, hopt=None):
 
     os.makedirs(output_folder, exist_ok=True)
     # Print the R2 scores
-    print("R-squared (R2) for train data:", r2_train)
     print("R-squared (R2) for  test data:", r2test)
     print("R-squared (R2) for  whole data:", r2whole)
 
     # Write the R2 scores to a file
     with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_r2_results.txt"),
               "w") as file:
-        file.write("R-squared (R2) for  train data: " + str(r2_train) + "\n")
         file.write("R-squared (R2) for  test data: " + str(r2test) + "\n")
         file.write("R-squared (R2) for  whole data: " + str(r2whole) + "\n")
 
 
-def save_r2_scores_cv(snp_data_loc, r2_train, r2test, hopt=None):
+def save_r2_scores_cv(snp_data_loc, r2test, hopt=None):
     output_folder = "model_outputs/cv"
 
     if hopt:
@@ -501,11 +490,9 @@ def save_r2_scores_cv(snp_data_loc, r2_train, r2test, hopt=None):
 
     os.makedirs(output_folder, exist_ok=True)
     # Print the R2 scores
-    print("R-squared (R2) for train data:", r2_train)
     print("R-squared (R2) for  test data:", r2test)
 
     # Write the R2 scores to a file
     with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_r2_results.txt"),
               "w") as file:
-        file.write("R-squared (R2) for  train data: " + str(r2_train) + "\n")
         file.write("R-squared (R2) for  test data: " + str(r2test) + "\n")

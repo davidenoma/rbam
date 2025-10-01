@@ -111,7 +111,7 @@ python runner/rbam_XAI_main.py test_geno/test_geno.raw test_geno/test_geno.bim c
 ### 2. Latent Space Classification
 
 ```bash
-python runner/latent_space_predictor.py test_geno/test_geno.raw
+python runner/rbam_predictor.py test_geno/test_geno.raw
 ```
 
 **Classifiers Implemented:**

@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 
 
 import utils
-from utils import save_summary, load_real_genotype_data_case_control, load_real_genotype_data
+from utils import load_real_genotype_data_case_control, load_real_genotype_data
 
 
 # Set up environment
@@ -67,6 +67,7 @@ class VAE(tf.keras.Model):
 
 @tf.keras.utils.register_keras_serializable(package="Custom", name="vae_loss")
 def vae_loss(encoder):
+
     def loss(x, x_reconstructed):
         z_mean, z_log_var = tf.split(encoder(x), num_or_size_splits=2, axis=1)
         reconstruction_loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(x, x_reconstructed))
@@ -141,8 +142,14 @@ def objective(params):
     return {'loss': history.history['val_loss'][-1], 'status': 'ok'}
 
 
-# Load or create VAE model
-best_model = load_model(snp_data_loc, directory)
+
+# Load or create VAE model with error handling
+try:
+    best_model = load_model(snp_data_loc, directory)
+except Exception as e:
+    print(f"Error loading model: {e}")
+    best_model = None
+
 
 if not best_model:
     space = {
@@ -182,40 +189,28 @@ if not best_model:
     save_model(best_model, snp_data_loc, directory)
 
 # Reconstruct input data using the trained VAE
-reconstructed_data_train = best_model.predict(X_train)
 reconstructed_data_test = best_model.predict(X_test)
 reconstructed_full_data = best_model.predict(snp_data)
 
-mse_train = utils.compute_rmse(X_train, reconstructed_data_train)**2
 mse_test = utils.compute_rmse(X_test, reconstructed_data_test)**2
 mse_whole = utils.compute_rmse(snp_data, reconstructed_full_data)**2
-
+utils.save_mse_values(snp_data_loc, mse_test, mse_whole, hopt=hopt)
 # Calculate R²
-r2_train = np.mean(utils.evaluate_r2(X_train, reconstructed_data_train))
+
 r2_test = np.mean(utils.evaluate_r2(X_test, reconstructed_data_test))
 r2_whole = np.mean(utils.evaluate_r2(snp_data, reconstructed_full_data))
-utils.save_r2_scores(snp_data_loc, r2_train, r2_test, r2_whole, hopt=hopt)
-
-# Calculate Adjusted R²
-n_train, p_train = X_train.shape
-n_test, p_test = X_test.shape
-n_whole, p_whole = snp_data.shape
+utils.save_r2_scores(snp_data_loc, r2_test, r2_whole, hopt=hopt)
 
 
 print("MSE:", mse_whole)
 print("R²:", r2_whole)
-print("Cross Validation")
 
 # Perform cross-validation
-(
-    avg_mse_train, avg_mse_test,
-    avg_r2_train, avg_r2_test,
-    avg_pearson_corr_train, avg_pearson_corr_test
-) = utils.cross_validate_vae(snp_data, best_model)
+avg_mse_test, avg_r2_test = utils.cross_validate_vae(snp_data, best_model)
 
 # Save cross-validation metrics
-utils.save_mse_values_cv(snp_data_loc, avg_mse_train, avg_mse_test, hopt=hopt)
-utils.save_r2_scores_cv(snp_data_loc, avg_r2_train, avg_r2_test, hopt=hopt)
+utils.save_mse_values_cv(snp_data_loc, avg_mse_test, hopt=hopt)
+utils.save_r2_scores_cv(snp_data_loc, avg_r2_test, hopt=hopt)
 
 
 # Extract feature importance
