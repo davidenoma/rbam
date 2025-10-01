@@ -1,8 +1,8 @@
 # RBAM: Representation Learning-Based Genome-wide Association Mapping
 
+<div align="center">
  <img width="600" height="600" alt="rbam_method,rbam_logo" src="https://github.com/user-attachments/assets/150c58a8-8e1e-4824-bc44-11efbd2cd2c7" />
-
-
+</div>
 
 ## Overview
 RBAM  is a framework that leverages variational autoencoders (VAE) to learn latent genotype representations, facilitating representation-informed association mapping and phenotype classification. This approach addresses limitations of traditional GWAS by accounting for polygenicity, epistatic interactions, and linkage disequilibrium.
