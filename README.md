@@ -32,14 +32,6 @@ git clone https://github.com/davidenoma/moka.git  ~/moka
 3. (Recommended) Create a new Python 3.9 environment:
 
 #### Using Conda
-```bash
-conda create -n rbam_env python=3.9
-conda activate rbam_env
-```
-
-#### Using venv (pip)
-```bash
-python3.9 -m venv rbam_env
 source rbam_env/bin/activate
 ```
 
@@ -54,7 +46,17 @@ conda install --file requirements.txt
 ```bash
 pip install -r requirements.txt
 ```
+### Software Versions
+For manuscripts utilizing custom algorithms or software that are central to the research but not yet described in published literature, the following Python package versions were used to ensure reproducibility:  
+`numpy` 1.21.6, `pandas` 1.3.5, `tensorflow` 2.6.0, `keras` 2.6.0, `hyperopt` 0.2.7, `matplotlib` 3.4.3, `scikit-learn` 0.24.2, `xgboost` 1.5.2, `shap` 0.39.0, `seaborn` 0.11.2, and `pyyaml` 5.4.1.  
+These versions are specified in the `requirements.txt` file and should be installed to replicate the computational environment used in this study.
 
+For the benchmarking and method comparisons reported in this work,
+we used the following external tools and versions: **REGENIE v2.2.4** — 
+used for single-variant and whole-genome regression-based association 
+comparisons ([https://github.com/rgcgithub/regenie](https://github.com/rgcgithub/regenie)).
+**SKAT R package v2.0.5** — used for sequence/kernel-based association testing comparisons (available via CRAN/Bioconductor). 
+These versions were selected to ensure reproducibility of the results
 ### External Tools
 - [PLINK](https://www.cog-genomics.org/plink/) - For genotype data processing
 - [MOKA Pipeline](https://github.com/davidenoma/moka) - For association mapping
