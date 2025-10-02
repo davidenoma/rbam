@@ -14,8 +14,9 @@ Genome-wide association studies (GWAS) have provided key insights into the genet
 
 **Keywords:** Representation learning, Variational auto-encoder, Genome-wide association study, Kernel association testing, Complex traits, Polygenic risk prediction
 <div align="center">
-    <img width="800" height="800" alt="rbam_final" src="https://github.com/user-attachments/assets/d0d13c5f-e6ac-444e-b51f-67b697de6f62" />
+    <img width="800" height="800" alt="rbam_final" src="https://github.com/user-attachments/assets/1e833aa4-86db-4ed9-ba5b-78f7fa9c5169" />
 </div>
+<!-- <img width="6100" height="7160" alt="image" src="https://github.com/user-attachments/assets/1e833aa4-86db-4ed9-ba5b-78f7fa9c5169" /> -->
 
 
 ## Installation
