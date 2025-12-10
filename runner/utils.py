@@ -6,11 +6,14 @@ import pandas as pd
 import sys
 from matplotlib import pyplot as plt
 from sklearn import clone
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.metrics import  mean_squared_error, accuracy_score, roc_auc_score
+from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, pairwise_distances
 import tensorflow as tf
 import numpy as np
 from sklearn.model_selection import KFold
+import seaborn as sns
 
 
 def extract_phenotype(genotype_file):
@@ -496,3 +499,122 @@ def save_r2_scores_cv(snp_data_loc, r2test, hopt=None):
     with open(os.path.join(output_folder, f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_r2_results.txt"),
               "w") as file:
         file.write("R-squared (R2) for  test data: " + str(r2test) + "\n")
+
+def plot_latent_space_clustering(snp_data_loc, vae_model, X_data, method='tsne', n_components=2, hopt=None):
+    """
+    Visualize the latent space clustering of the VAE model.
+
+    Args:
+        vae_model (tf.keras.Model): The trained VAE model.
+        X_data (pd.DataFrame or np.ndarray): Input genotype data (individuals x SNPs).
+        labels (pd.Series or np.ndarray): Labels for the individuals (e.g., case/control or phenotypes).
+        method (str): Dimensionality reduction method ('tsne' or 'pca').
+        n_components (int): Number of dimensions to reduce to (default is 2).
+    """
+    # Ensure data is in NumPy format
+    # if isinstance(X_data, pd.DataFrame):
+    #     X_data = X_data.values
+    output_folder = "model_outputs"
+
+    if hopt:
+        output_folder = os.path.join(output_folder, hopt)
+
+    # Get the latent space representation from the encoder
+    encoder = vae_model.encoder
+    z_mean, _ = tf.split(encoder.predict(X_data), num_or_size_splits=2, axis=1)
+    print(z_mean)
+    # Perform dimensionality reduction
+    if method == 'tsne':
+        print("Applying t-SNE for dimensionality reduction...")
+        reduced_latent = TSNE(n_components=n_components).fit_transform(z_mean)
+    elif method == 'pca':
+        print("Applying PCA for dimensionality reduction..")
+        reduced_latent = PCA(n_components=n_components).fit_transform(z_mean)
+    else:
+        raise ValueError("Invalid method. Choose 'tsne' or 'pca'.")
+
+    # Create a scatter plot of the reduced latent space
+    plt.figure(figsize=(10, 8))
+    sns.scatterplot(x=reduced_latent[:, 0], y=reduced_latent[:, 1], palette='Set1', s=60, alpha=0.8)
+    plt.title(f'Latent Space Clustering using {method.upper()}', fontsize=16)
+    plt.xlabel('Component 1', fontsize=12)
+    plt.ylabel('Component 2', fontsize=12)
+    # plt.legend(title='Labels', loc='best')
+    plt.savefig(
+        os.path.join(output_folder,
+                     f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_{method.upper()}_clustering.png"))
+    plt.show()
+def rank_distance_correlation(X, Z):
+    """
+    Compute Rank Distance Correlation (RdCorr) between each feature in X and the latent representation Z.
+
+    Args:
+        X (np.ndarray): Original input matrix (samples x features).
+        Z (np.ndarray): Latent space representation (samples x latent dimensions).
+
+    Returns:
+        rdc_scores (np.ndarray): Rank distance correlation scores for each feature in X.
+    """
+    n_samples, n_features = X.shape
+    rdc_scores = np.zeros(n_features)
+
+    for i in range(n_features):
+        # Compute pairwise distances for the i-th feature and the latent space
+        d_X = pairwise_distances(X[:, [i]], metric='euclidean')
+        d_Z = pairwise_distances(Z, metric='euclidean')
+
+        # Compute rank transformation of distances
+        rank_X = np.argsort(np.argsort(d_X, axis=0), axis=0)
+        rank_Z = np.argsort(np.argsort(d_Z, axis=0), axis=0)
+
+        # Compute the rank distance covariance
+        cov_XZ = np.sum((rank_X - rank_X.mean()) * (rank_Z - rank_Z.mean())) / n_samples
+        var_X = np.sum((rank_X - rank_X.mean()) ** 2) / n_samples
+        var_Z = np.sum((rank_Z - rank_Z.mean()) ** 2) / n_samples
+
+        # Calculate Rank Distance Correlation (RdCorr)
+        rdc_scores[i] = cov_XZ / np.sqrt(var_X * var_Z)
+
+    return rdc_scores
+
+
+def compute_snp_rdc_scores(snp_data_loc,vae_model, X_data, snp_ids, hopt=None):
+    """
+    Compute Rank Distance Correlation (RdCorr) scores for each SNP feature.
+
+    Args:
+        snp_data_loc:
+        vae_model (tf.keras.Model): Trained VAE model.
+        X_data (pd.DataFrame or np.ndarray): Input genotype data (individuals x SNPs).
+        snp_ids (pd.Series or list): List or Series of SNP IDs corresponding to columns of the genotype matrix.
+        hopt (str): Optional string for hyperopt or other directory handling.
+
+    Returns:
+        pd.DataFrame: DataFrame with SNPs and their corresponding RdCorr scores.
+    """
+    output_folder = "model_outputs"
+    if hopt:
+        output_folder = os.path.join(output_folder, hopt)
+    os.makedirs(output_folder, exist_ok=True)
+    output_file = os.path.join(output_folder,
+                               f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_rdcorr_scores.csv")
+
+    if isinstance(X_data, pd.DataFrame):
+        X_data = X_data.values
+
+    # Get the latent space representation from the encoder
+    encoder = vae_model.encoder
+    Z_mean, _ = tf.split(encoder.predict(X_data), num_or_size_splits=2, axis=1)  # Use z_mean from VAE
+
+    # Compute RdCorr for each SNP feature
+    rdc_scores = rank_distance_correlation(X_data, Z_mean)
+
+    # Create a DataFrame to store SNPs and their RdCorr scores
+    rdc_scores_df = pd.DataFrame({
+        'SNP': snp_ids,
+        'RdCorr': rdc_scores
+    })
+
+    # Save RdCorr scores to a CSV file
+    rdc_scores_df.to_csv(output_file, index=False)
+    print(f"Rank Distance Correlation (RdCorr) scores saved to {output_file}")

@@ -223,3 +223,5 @@ bim = pd.read_csv(sys.argv[2], sep="\t")
 # Obtain SNPs and weights for both decoder and encoder
 utils.obtain_snps_and_weights(X_train, feature_importance_decoder, bim, snp_data_loc, "decoder", hopt=hopt)
 utils.obtain_snps_and_weights(X_train, feature_importance_encoder, bim, snp_data_loc, "encoder", hopt=hopt)
+
+rdc_scores = utils.compute_snp_rdc_scores(snp_data_loc, best_model, snp_data, snp_data.columns,hopt=hopt )
