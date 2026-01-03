@@ -9,7 +9,7 @@ from sklearn import clone
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, pairwise_distances
+from sklearn.metrics import mean_squared_error, accuracy_score, roc_auc_score, pairwise_distances, f1_score, precision_recall_curve, auc, average_precision_score
 import tensorflow as tf
 import numpy as np
 from sklearn.model_selection import KFold
@@ -618,3 +618,263 @@ def compute_snp_rdc_scores(snp_data_loc,vae_model, X_data, snp_ids, hopt=None):
     # Save RdCorr scores to a CSV file
     rdc_scores_df.to_csv(output_file, index=False)
     print(f"Rank Distance Correlation (RdCorr) scores saved to {output_file}")
+
+def split_genotype_by_chromosome(snp_data, bim_data):
+    """
+    Split genotype data into separate DataFrames for each chromosome.
+
+    Args:
+        snp_data (pd.DataFrame): SNP data with SNP IDs.
+        bim_data (pd.DataFrame): BIM data with chromosome information.
+
+    Returns:
+        dict: Dictionary with chromosome numbers as keys and DataFrames as values.
+    """
+    # Merge SNP data with BIM data to get chromosome information
+    merged_data = pd.merge(snp_data, bim_data[['SNP_ID', 'Chromosome']], on='SNP_ID', how='left')
+
+    # Split data by chromosome
+    chromosome_groups = merged_data.groupby('Chromosome')
+
+    # Create a dictionary to store DataFrames for each chromosome
+    chromosome_dfs = {}
+    for chromosome, group in chromosome_groups:
+        chromosome_dfs[chromosome] = group.drop(columns=['Chromosome'])
+
+    return chromosome_dfs
+
+
+def extended_metrics(y_true, y_pred, average='binary'):
+    """
+    Compute extended metrics including F1 score and AUC-PR.
+
+    Args:
+        y_true (np.ndarray or pd.Series): True binary labels.
+        y_pred (np.ndarray or pd.Series): Predicted probabilities or binary labels.
+        average (str): Averaging method for F1 score ('binary', 'micro', 'macro', or 'weighted').
+
+    Returns:
+        dict: Dictionary with F1 score and AUC-PR.
+    """
+    # Compute F1 score
+    f1 = f1_score(y_true, y_pred, average=average)
+
+    # Compute Precision-Recall curve and AUC-PR
+    precision, recall, _ = precision_recall_curve(y_true, y_pred)
+    auc_pr = auc(recall, precision)
+
+    return {'F1 Score': f1, 'AUC-PR': auc_pr}
+
+
+def save_classifier_metrics_extended(snp_data_loc, accuracy, auc, f1, au_pr, ind_test_accuracy,
+                            ind_test_auc, ind_test_f1, ind_test_au_pr,
+                         hopt=None):
+    """
+    Save the extended classifier metrics including accuracy, AUC, F1 score, and AUC-PR to a file.
+
+    Parameters:
+    snp_data_loc (str): Location of the SNP data.
+
+    accuracy (float): Validation accuracy score.
+    auc (float): Validation AUC score.
+    f1 (float): Validation F1 score.
+    au_pr (float): Validation AUC-PR score.
+    hopt (str): Optional hyperparameter optimization identifier.
+    """
+    output_folder = "model_outputs"
+
+    if hopt:
+        output_folder = os.path.join(output_folder, hopt)
+
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Write the metrics to a file
+    with open(os.path.join(output_folder,
+                           f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_classifier_metrics_extended.txt"),
+              "w") as file:
+
+        file.write(f"Model Accuracy: {accuracy}\n")
+        file.write(f"Model AUC: {auc}\n")
+        file.write(f"Model F1 Score: {f1}\n")
+        file.write(f"Model AUC-PR: {au_pr}\n")
+        file.write(f"Independent Test Accuracy: {ind_test_accuracy}\n")
+        file.write(f"Independent Test AUC: {ind_test_auc}\n")
+        file.write(f"Independent Test F1 Score: {ind_test_f1}\n")
+        file.write(f"Independent Test AUC-PR: {ind_test_au_pr}\n")
+
+
+def cross_validate_classifier_extended(X, y, model, n_splits=5, random_state=11):
+    """
+    Uses K-fold CV with extended metrics (F1 and AUC-PR).
+    The estimator is *cloned* (untrained) at every fold to avoid leakage.
+    """
+    X, y = np.asarray(X), np.asarray(y)
+    kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+
+    acc_val, auc_val, f1_val, auprc_val = [], [], [], []
+
+    for tr_idx, val_idx in kf.split(X, y):
+        X_tr, X_val = X[tr_idx], X[val_idx]
+        y_tr, y_val = y[tr_idx], y[val_idx]
+
+        if isinstance(model, tf.keras.Model):
+            fold_model = tf.keras.models.clone_model(model, clone_function=None)
+            fold_model.compile(optimizer=tf.keras.optimizers.Adam(),
+                               loss='binary_crossentropy')
+            fold_model.fit(X_tr, y_tr, epochs=10, batch_size=32, verbose=0)
+            y_val_proba = fold_model.predict(X_val, verbose=0).ravel()
+        else:
+            fold_model = clone(model)
+            fold_model.fit(X_tr, y_tr)
+            y_val_proba = (fold_model.predict_proba(X_val)[:, 1]
+                           if hasattr(fold_model, "predict_proba")
+                           else fold_model.predict(X_val))
+
+        y_val_pred = (y_val_proba > 0.5).astype(int)
+
+        acc_val.append(accuracy_score(y_val, y_val_pred))
+        auc_val.append(roc_auc_score(y_val, y_val_proba))
+        f1_val.append(f1_score(y_val, y_val_pred))
+        auprc_val.append(average_precision_score(y_val, y_val_proba))
+
+    return (np.mean(acc_val), np.mean(auc_val), np.mean(f1_val), np.mean(auprc_val))
+
+
+def load_genotype_data_by_chromosome(snp_data_loc, bim_file):
+    """
+    Loads genotype data and splits it by chromosome.
+
+    Parameters:
+        snp_data_loc (str): The path to the SNP data file.
+        bim_file (str): The path to the BIM file.
+
+    Returns:
+        dict: Dictionary with chromosome numbers as keys and (X_train, X_test, snp_data, phenotype, y_train, y_test) tuples as values.
+    """
+    # Extract the phenotype column
+    phenotype = extract_phenotype(snp_data_loc)
+
+    chunk_size = 1000
+    columns_to_skip = ['FID', 'IID', 'PAT', 'MAT', 'SEX', 'PHENOTYPE']
+    snp_data = pd.DataFrame()
+
+    reader = pd.read_csv(snp_data_loc, sep=" ", usecols=lambda column: column not in columns_to_skip,
+                         dtype='int8', chunksize=chunk_size, verbose=True)
+
+    for chunk in reader:
+        snp_data = pd.concat([snp_data, chunk])
+
+    if 'PHENOTYPE' in snp_data.columns:
+        snp_data = snp_data.drop(columns=['PHENOTYPE'])
+
+    print(snp_data.shape)
+    print("Done loading the recoded genotype")
+
+    # Load BIM file
+    bim = pd.read_csv(bim_file, sep="\t", header=None)
+    bim.columns = ['Chromosome', 'SNP_ID', 'Start', 'Position', 'Ref', 'Alt']
+
+    # Map SNP columns to chromosomes
+    snp_to_chrom = {}
+    for _, row in bim.iterrows():
+        snp_id = row['SNP_ID']
+        for col in snp_data.columns:
+            if col.startswith(snp_id):
+                snp_to_chrom[col] = row['Chromosome']
+                break
+
+    # Split data by chromosome
+    chromosome_data = {}
+    chromosomes = sorted(set(snp_to_chrom.values()))
+
+    for chrom in chromosomes:
+        chrom_cols = [col for col, c in snp_to_chrom.items() if c == chrom]
+        if chrom_cols:
+            chrom_snp_data = snp_data[chrom_cols]
+            X_train, X_test, y_train, y_test = train_test_split(
+                chrom_snp_data, phenotype, test_size=0.2, random_state=42)
+            chromosome_data[chrom] = (X_train, X_test, chrom_snp_data, phenotype, y_train, y_test)
+
+    return chromosome_data
+
+
+def save_split_chrom_reconstruction_metrics(snp_data_loc, metrics_dict, hopt=None):
+    """
+    Save reconstruction metrics for chromosome-split analysis.
+
+    Parameters:
+        snp_data_loc (str): Location of the SNP data.
+        metrics_dict (dict): Dictionary with chromosome as key and metrics as value.
+        hopt (str): Optional hyperparameter optimization identifier.
+    """
+    output_folder = "model_outputs"
+    if hopt:
+        output_folder = os.path.join(output_folder, hopt)
+    os.makedirs(output_folder, exist_ok=True)
+
+    with open(os.path.join(output_folder,
+                           f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_split_chrom_reconstruction.txt"),
+              "w") as file:
+        file.write("Chromosome-split Reconstruction Metrics\n")
+        file.write("=" * 50 + "\n\n")
+        for chrom, metrics in metrics_dict.items():
+            file.write(f"Chromosome {chrom}:\n")
+            file.write(f"  MSE (Test): {metrics.get('mse_test', 'N/A')}\n")
+            file.write(f"  MSE (Whole): {metrics.get('mse_whole', 'N/A')}\n")
+            file.write(f"  R² (Test): {metrics.get('r2_test', 'N/A')}\n")
+            file.write(f"  R² (Whole): {metrics.get('r2_whole', 'N/A')}\n")
+            file.write("\n")
+
+        # Calculate and save averages
+        avg_mse_test = np.mean([m['mse_test'] for m in metrics_dict.values() if 'mse_test' in m])
+        avg_mse_whole = np.mean([m['mse_whole'] for m in metrics_dict.values() if 'mse_whole' in m])
+        avg_r2_test = np.mean([m['r2_test'] for m in metrics_dict.values() if 'r2_test' in m])
+        avg_r2_whole = np.mean([m['r2_whole'] for m in metrics_dict.values() if 'r2_whole' in m])
+
+        file.write("=" * 50 + "\n")
+        file.write("Average Metrics Across Chromosomes:\n")
+        file.write(f"  Average MSE (Test): {avg_mse_test}\n")
+        file.write(f"  Average MSE (Whole): {avg_mse_whole}\n")
+        file.write(f"  Average R² (Test): {avg_r2_test}\n")
+        file.write(f"  Average R² (Whole): {avg_r2_whole}\n")
+
+
+def save_split_chrom_prediction_metrics(snp_data_loc, metrics_dict, hopt=None):
+    """
+    Save prediction metrics for chromosome-split analysis.
+
+    Parameters:
+        snp_data_loc (str): Location of the SNP data.
+        metrics_dict (dict): Dictionary with chromosome as key and metrics as value.
+        hopt (str): Optional hyperparameter optimization identifier.
+    """
+    output_folder = "model_outputs"
+    if hopt:
+        output_folder = os.path.join(output_folder, hopt)
+    os.makedirs(output_folder, exist_ok=True)
+
+    with open(os.path.join(output_folder,
+                           f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_split_chrom_prediction.txt"),
+              "w") as file:
+        file.write("Chromosome-split Prediction Metrics\n")
+        file.write("=" * 50 + "\n\n")
+        for chrom, metrics in metrics_dict.items():
+            file.write(f"Chromosome {chrom}:\n")
+            file.write(f"  Accuracy: {metrics.get('accuracy', 'N/A')}\n")
+            file.write(f"  AUC: {metrics.get('auc', 'N/A')}\n")
+            file.write(f"  F1 Score: {metrics.get('f1', 'N/A')}\n")
+            file.write(f"  AUC-PR: {metrics.get('auprc', 'N/A')}\n")
+            file.write("\n")
+
+        # Calculate and save averages
+        avg_acc = np.mean([m['accuracy'] for m in metrics_dict.values() if 'accuracy' in m])
+        avg_auc = np.mean([m['auc'] for m in metrics_dict.values() if 'auc' in m])
+        avg_f1 = np.mean([m['f1'] for m in metrics_dict.values() if 'f1' in m])
+        avg_auprc = np.mean([m['auprc'] for m in metrics_dict.values() if 'auprc' in m])
+
+        file.write("=" * 50 + "\n")
+        file.write("Average Metrics Across Chromosomes:\n")
+        file.write(f"  Average Accuracy: {avg_acc}\n")
+        file.write(f"  Average AUC: {avg_auc}\n")
+        file.write(f"  Average F1 Score: {avg_f1}\n")
+        file.write(f"  Average AUC-PR: {avg_auprc}\n")

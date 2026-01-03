@@ -277,8 +277,12 @@ The framework provides comprehensive evaluation:
 
 - **Reconstruction Quality**: MSE and R² scores
 - **Feature Importance**: Encoder and decoder VAE weight distributions and SHAP values on Autoencoder
-- **Classification Performance**: Cross Validated prediction metrics (Accuracy, AUC)
+- **Classification Performance**: 
+  - Cross-validated prediction metrics (Accuracy, AUC-ROC)
+  - F1 Score (harmonic mean of precision and recall)
+  - AUC-PR (Area Under Precision-Recall Curve) - especially useful for imbalanced datasets
 - **Association Results**: Manhattan plots, KEGG and GO enrichment analyses
+- **Chromosome-Split Metrics**: Per-chromosome and averaged metrics across all chromosomes
 
 ## Troubleshooting
 
