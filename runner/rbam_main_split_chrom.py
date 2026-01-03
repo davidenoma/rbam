@@ -133,20 +133,27 @@ def train_vae_for_chromosome(X_train, X_test, snp_data, snp_data_loc, chrom, dir
         return None
 
     # Calculate latent dim options based on input dimension
-    latent_dim_options = [4, 8, 16, 32, 64]
-    if input_dim > 100:
-        latent_dim_options.extend([128, int(input_dim * 0.1), int(input_dim * 0.5)])
+    latent_dim_options = [256, 512, 1024,
+                          int(input_dim * 0.01),
+                          int(input_dim * 0.05),
+                          int(input_dim * 0.1),
+                          int(input_dim * 0.5)]
+    # Filter out latent dims that are >= input_dim or <= 0
+    latent_dim_options = [d for d in latent_dim_options if 0 < d < input_dim]
+
+    if not latent_dim_options:
+        latent_dim_options = [min(32, input_dim - 1)]
 
     space = {
         'num_hidden_layers_encoder': hp.choice('num_hidden_layers_encoder', range(1, 10)),
         'num_hidden_layers_decoder': hp.choice('num_hidden_layers_decoder', range(1, 10)),
-        'encoding_dimensions': hp.choice('encoding_dimensions', [64, 128, 256]),
-        'decoding_dimensions': hp.choice('decoding_dimensions', [64, 128, 256]),
-        'activation': hp.choice('activation', ['relu', 'sigmoid']),
-        'learning_rate': hp.choice('learning_rate', [0.0001, 0.001]),
-        'epochs': hp.choice('epochs', [50, 100]),
-        'batch_size': hp.choice('batch_size', [32, 64]),
-        'latent_dim': hp.choice('latent_dim', [d for d in latent_dim_options if d < input_dim])
+        'encoding_dimensions': hp.choice('encoding_dimensions', [128, 256, 512]),
+        'decoding_dimensions': hp.choice('decoding_dimensions', [128, 256, 512]),
+        'activation': hp.choice('activation', ['relu', 'sigmoid','tanh']),
+        'learning_rate': hp.choice('learning_rate', [0.01,0.001,0.0001]),
+        'epochs': hp.choice('epochs', [50,100]),
+        'batch_size': hp.choice('batch_size', [8,16,32,64]),
+        'latent_dim': hp.choice('latent_dim', latent_dim_options)
     }
 
     def objective(params):

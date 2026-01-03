@@ -842,6 +842,7 @@ def save_split_chrom_reconstruction_metrics(snp_data_loc, metrics_dict, hopt=Non
 def save_split_chrom_prediction_metrics(snp_data_loc, metrics_dict, hopt=None):
     """
     Save prediction metrics for chromosome-split analysis.
+    Includes both independent test metrics and cross-validation metrics.
 
     Parameters:
         snp_data_loc (str): Location of the SNP data.
@@ -857,24 +858,53 @@ def save_split_chrom_prediction_metrics(snp_data_loc, metrics_dict, hopt=None):
                            f"{os.path.splitext(os.path.basename(snp_data_loc))[0]}_split_chrom_prediction.txt"),
               "w") as file:
         file.write("Chromosome-split Prediction Metrics\n")
-        file.write("=" * 50 + "\n\n")
+        file.write("=" * 60 + "\n\n")
+
         for chrom, metrics in metrics_dict.items():
             file.write(f"Chromosome {chrom}:\n")
-            file.write(f"  Accuracy: {metrics.get('accuracy', 'N/A')}\n")
-            file.write(f"  AUC: {metrics.get('auc', 'N/A')}\n")
-            file.write(f"  F1 Score: {metrics.get('f1', 'N/A')}\n")
-            file.write(f"  AUC-PR: {metrics.get('auprc', 'N/A')}\n")
+            file.write(f"  Independent Test Metrics:\n")
+            file.write(f"    Accuracy: {metrics.get('ind_test_accuracy', metrics.get('accuracy', 'N/A'))}\n")
+            file.write(f"    Balanced Accuracy: {metrics.get('ind_test_balanced_accuracy', metrics.get('balanced_accuracy', 'N/A'))}\n")
+            file.write(f"    AUC: {metrics.get('ind_test_auc', metrics.get('auc', 'N/A'))}\n")
+            file.write(f"    F1 Score: {metrics.get('ind_test_f1', metrics.get('f1', 'N/A'))}\n")
+            file.write(f"    AUC-PR: {metrics.get('ind_test_auprc', metrics.get('auprc', 'N/A'))}\n")
+
+            if metrics.get('cv_accuracy') is not None:
+                file.write(f"  Cross-Validation Metrics:\n")
+                file.write(f"    Accuracy: {metrics.get('cv_accuracy', 'N/A')}\n")
+                file.write(f"    AUC: {metrics.get('cv_auc', 'N/A')}\n")
+                file.write(f"    F1 Score: {metrics.get('cv_f1', 'N/A')}\n")
+                file.write(f"    AUC-PR: {metrics.get('cv_auprc', 'N/A')}\n")
             file.write("\n")
 
-        # Calculate and save averages
-        avg_acc = np.mean([m['accuracy'] for m in metrics_dict.values() if 'accuracy' in m])
-        avg_auc = np.mean([m['auc'] for m in metrics_dict.values() if 'auc' in m])
-        avg_f1 = np.mean([m['f1'] for m in metrics_dict.values() if 'f1' in m])
-        avg_auprc = np.mean([m['auprc'] for m in metrics_dict.values() if 'auprc' in m])
+        # Calculate and save averages for independent test metrics
+        ind_metrics = [m for m in metrics_dict.values()]
+        avg_ind_acc = np.mean([m.get('ind_test_accuracy', m.get('accuracy', 0)) for m in ind_metrics])
+        avg_ind_bal_acc = np.mean([m.get('ind_test_balanced_accuracy', m.get('balanced_accuracy', 0)) for m in ind_metrics])
+        avg_ind_auc = np.mean([m.get('ind_test_auc', m.get('auc', 0)) for m in ind_metrics])
+        avg_ind_f1 = np.mean([m.get('ind_test_f1', m.get('f1', 0)) for m in ind_metrics])
+        avg_ind_auprc = np.mean([m.get('ind_test_auprc', m.get('auprc', 0)) for m in ind_metrics])
 
-        file.write("=" * 50 + "\n")
+        file.write("=" * 60 + "\n")
         file.write("Average Metrics Across Chromosomes:\n")
-        file.write(f"  Average Accuracy: {avg_acc}\n")
-        file.write(f"  Average AUC: {avg_auc}\n")
-        file.write(f"  Average F1 Score: {avg_f1}\n")
-        file.write(f"  Average AUC-PR: {avg_auprc}\n")
+        file.write("=" * 60 + "\n\n")
+        file.write("Independent Test Metrics:\n")
+        file.write(f"  Average Accuracy: {avg_ind_acc}\n")
+        file.write(f"  Average Balanced Accuracy: {avg_ind_bal_acc}\n")
+        file.write(f"  Average AUC: {avg_ind_auc}\n")
+        file.write(f"  Average F1 Score: {avg_ind_f1}\n")
+        file.write(f"  Average AUC-PR: {avg_ind_auprc}\n")
+
+        # Calculate and save averages for CV metrics (if available)
+        cv_metrics = [m for m in metrics_dict.values() if m.get('cv_accuracy') is not None]
+        if cv_metrics:
+            avg_cv_acc = np.mean([m['cv_accuracy'] for m in cv_metrics])
+            avg_cv_auc = np.mean([m['cv_auc'] for m in cv_metrics])
+            avg_cv_f1 = np.mean([m['cv_f1'] for m in cv_metrics])
+            avg_cv_auprc = np.mean([m['cv_auprc'] for m in cv_metrics])
+
+            file.write("\nCross-Validation Metrics:\n")
+            file.write(f"  Average Accuracy: {avg_cv_acc}\n")
+            file.write(f"  Average AUC: {avg_cv_auc}\n")
+            file.write(f"  Average F1 Score: {avg_cv_f1}\n")
+            file.write(f"  Average AUC-PR: {avg_cv_auprc}\n")
